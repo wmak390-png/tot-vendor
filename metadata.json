@@ -1,0 +1,6 @@
+{
+  "name": "TakeOnTime Vendor",
+  "description": "Vendor operations application for TakeOnTime food partners to manage menus, track live orders, control availability, and oversee operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

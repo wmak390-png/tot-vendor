@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "TakeOnTime Vendor",
+    "slug": "takeontime-vendor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "backgroundColor": "#f8f9fa",
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain"
+    },
+    "scheme": "takeontime-vendor",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {},
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

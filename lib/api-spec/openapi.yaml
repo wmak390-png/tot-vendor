@@ -1,0 +1,508 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: vendor
+    description: Vendor operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /vendor/operations:
+    get:
+      operationId: getVendorOperations
+      tags: [vendor]
+      summary: Read the vendor operations workspace
+      parameters:
+        - $ref: "#/components/parameters/VendorId"
+      responses:
+        "200":
+          description: Vendor operations snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorOperationsSnapshot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /vendor/operations/store:
+    patch:
+      operationId: updateVendorStore
+      tags: [vendor]
+      summary: Update accepting-orders and temporary-break state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreUpdate"
+      responses:
+        "200":
+          description: Updated vendor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorSummary"
+  /vendor/operations/plans:
+    post:
+      operationId: createVendorPassPlan
+      tags: [vendor]
+      summary: Create a prepaid pass plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePassPlan"
+      responses:
+        "201":
+          description: Created plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPassPlan"
+  /vendor/operations/plans/{planId}:
+    patch:
+      operationId: updateVendorPassPlan
+      tags: [vendor]
+      summary: Activate or pause a pass plan
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PassPlanUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPassPlan"
+  /vendor/operations/slots/{slotId}:
+    patch:
+      operationId: updateVendorMealSlot
+      tags: [vendor]
+      summary: Update meal-slot availability and capacity
+      parameters:
+        - $ref: "#/components/parameters/SlotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealSlotUpdate"
+      responses:
+        "200":
+          description: Updated meal slot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorMealSlot"
+  /vendor/operations/categories:
+    post:
+      operationId: createVendorCategory
+      tags: [vendor]
+      summary: Create a menu category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategory"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorCategory"
+  /vendor/operations/items:
+    post:
+      operationId: createVendorItem
+      tags: [vendor]
+      summary: Create a menu item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItem"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorItem"
+  /vendor/operations/items/{itemId}:
+    patch:
+      operationId: updateVendorItem
+      tags: [vendor]
+      summary: Update menu item details or availability
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemUpdate"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorItem"
+  /vendor/operations/orders/{orderId}/status:
+    patch:
+      operationId: updateVendorOrderStatus
+      tags: [vendor]
+      summary: Advance or cancel a vendor order
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusUpdate"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorOrder"
+  /vendor/operations/reservations/{reservationId}/cancel:
+    post:
+      operationId: cancelVendorReservation
+      tags: [vendor]
+      summary: Cancel an individual reservation with a defined reason
+      parameters:
+        - $ref: "#/components/parameters/ReservationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelReservationRequest"
+      responses:
+        "200":
+          description: Cancelled reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorReservation"
+  /vendor/operations/reservations/{reservationId}/status:
+    patch:
+      operationId: updateVendorReservationStatus
+      tags: [vendor]
+      summary: Resolve an individual reservation
+      parameters:
+        - $ref: "#/components/parameters/ReservationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationStatusUpdate"
+      responses:
+        "200":
+          description: Updated reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorReservation"
+components:
+  parameters:
+    VendorId:
+      name: vendorId
+      in: query
+      required: false
+      schema:
+        type: string
+        default: demo-vendor-1
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      schema:
+        type: string
+    SlotId:
+      name: slotId
+      in: path
+      required: true
+      schema:
+        type: string
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReservationId:
+      name: reservationId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            status:
+              type: integer
+          required: [code, message, status]
+      required: [error]
+    VendorSummary:
+      type: object
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        businessType: { type: string }
+        merchantId: { type: string }
+        address: { type: string }
+        acceptingOrders: { type: boolean }
+        breakUntil: { type: string, nullable: true, format: date-time }
+        isApproved: { type: boolean }
+        approvalNote: { type: string, nullable: true }
+      required: [id, businessName, businessType, merchantId, address, acceptingOrders, breakUntil, isApproved, approvalNote]
+    VendorCategory:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        count: { type: integer }
+        accent: { type: string }
+      required: [id, name, count, accent]
+    VendorItem:
+      type: object
+      properties:
+        id: { type: string }
+        categoryId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        soldOut: { type: boolean }
+        prep: { type: string }
+      required: [id, categoryId, name, description, price, soldOut, prep]
+    VendorOrder:
+      type: object
+      properties:
+        id: { type: string }
+        vendorId: { type: string }
+        customer: { type: string }
+        item: { type: string }
+        quantity: { type: integer }
+        amount: { type: number }
+        status: { type: string }
+        time: { type: string }
+        pickup: { type: string }
+        note: { type: string, nullable: true }
+        orderType: { type: string }
+      required: [id, vendorId, customer, item, quantity, amount, status, time, pickup, note, orderType]
+    VendorPassPlan:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        cadence: { type: string }
+        price: { type: number }
+        meals: { type: string }
+        subscribers: { type: integer }
+        active: { type: boolean }
+        totalMeals: { type: integer }
+        validityDays: { type: integer }
+        dailyLimit: { type: integer }
+        mealSlots:
+          type: array
+          items: { type: string }
+      required: [id, name, cadence, price, meals, subscribers, active, totalMeals, validityDays, dailyLimit, mealSlots]
+    VendorMealSlot:
+      type: object
+      properties:
+        id: { type: string }
+        vendorId: { type: string }
+        meal: { type: string }
+        time: { type: string }
+        booked: { type: integer }
+        capacity: { type: integer }
+        tables: { type: integer }
+        open: { type: boolean }
+      required: [id, vendorId, meal, time, booked, capacity, tables, open]
+    VendorReservation:
+      type: object
+      properties:
+        id: { type: string }
+        vendorId: { type: string }
+        customer: { type: string }
+        passName: { type: string }
+        meal: { type: string }
+        slotId: { type: string }
+        pickupDate: { type: string }
+        pickupTime: { type: string }
+        status: { type: string }
+        cancellationReason: { type: string, nullable: true }
+      required: [id, vendorId, customer, passName, meal, slotId, pickupDate, pickupTime, status, cancellationReason]
+    VendorNotification:
+      type: object
+      properties:
+        id: { type: string }
+        vendorId: { type: string }
+        title: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        isRead: { type: boolean }
+      required: [id, vendorId, title, body, createdAt, isRead]
+    VendorOperationsSnapshot:
+      type: object
+      properties:
+        vendor: { $ref: "#/components/schemas/VendorSummary" }
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/VendorCategory" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/VendorItem" }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/VendorOrder" }
+        passPlans:
+          type: array
+          items: { $ref: "#/components/schemas/VendorPassPlan" }
+        reservationSlots:
+          type: array
+          items: { $ref: "#/components/schemas/VendorMealSlot" }
+        reservations:
+          type: array
+          items: { $ref: "#/components/schemas/VendorReservation" }
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/VendorNotification" }
+      required: [vendor, categories, items, orders, passPlans, reservationSlots, reservations, notifications]
+    StoreUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        acceptingOrders: { type: boolean }
+        breakUntil: { type: string, nullable: true, format: date-time }
+    CreatePassPlan:
+      type: object
+      properties:
+        vendorId: { type: string }
+        name: { type: string }
+        cadence:
+          type: string
+          enum: [Daily, Weekly, Monthly]
+        price: { type: number }
+      required: [name, cadence, price]
+    PassPlanUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        active: { type: boolean }
+      required: [active]
+    MealSlotUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        open: { type: boolean }
+        capacity: { type: integer, minimum: 1 }
+        tables: { type: integer, minimum: 1 }
+    CreateCategory:
+      type: object
+      properties:
+        vendorId: { type: string }
+        name: { type: string }
+      required: [name]
+    CreateItem:
+      type: object
+      properties:
+        vendorId: { type: string }
+        categoryId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        prepMinutes: { type: integer, minimum: 1 }
+        isAvailable: { type: boolean }
+      required: [categoryId, name, price]
+    ItemUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        prepMinutes: { type: integer, minimum: 1 }
+        isAvailable: { type: boolean }
+    OrderStatusUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        status:
+          type: string
+          enum: [New, Accepted, Preparing, Ready, Completed, Cancelled]
+      required: [status]
+    CancelReservationRequest:
+      type: object
+      properties:
+        vendorId: { type: string }
+        reason:
+          type: string
+          enum: [Capacity interruption, Ingredient unavailable, Service interruption]
+      required: [reason]
+    ReservationStatusUpdate:
+      type: object
+      properties:
+        vendorId: { type: string }
+        status:
+          type: string
+          enum: [Reserved, Preparing, Ready, Collected, Cancelled, No-show]
+      required: [status]
+

@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/takeontime-vendor/"
+title = "TakeOnTime Vendor"
+description = "A vendor operations app for TakeOnTime food partners to onboard, manage their menu, control store availability, process live orders, review performance, and update business settings."
+version = "1.0.0"
+id = "artifacts/takeontime-vendor"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/takeontime-vendor/" ]
+localPort = 18936
+
+[services.development]
+run = "pnpm --filter @workspace/takeontime-vendor run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/takeontime-vendor", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/takeontime-vendor", "run", "serve" ]
+
+[services.env]
+PORT = "18936"
+BASE_PATH = "/takeontime-vendor/"

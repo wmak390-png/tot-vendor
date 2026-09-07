@@ -1,0 +1,1 @@
+- [Vendor app foundation](vendor-app-foundation.md) — vendor UX now reads/writes a server-backed demo workspace until real identity and production integrations are connected.

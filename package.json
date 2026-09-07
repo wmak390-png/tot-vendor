@@ -1,0 +1,22 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "npm run dev --workspace=@workspace/mockup-sandbox",
+    "build": "npm run build --workspace=@workspace/mockup-sandbox",
+    "preview": "npm run preview --workspace=@workspace/mockup-sandbox",
+    "lint": "tsc -b"
+  },
+  "workspaces": [
+    "artifacts/mockup-sandbox",
+    "artifacts/api-server",
+    "lib/*",
+    "scripts"
+  ],
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}
