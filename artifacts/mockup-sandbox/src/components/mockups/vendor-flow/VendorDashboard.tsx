@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  Armchair,
   ArrowUpRight,
   Bell,
+  Building,
   CalendarClock,
   Check,
   ChevronDown,
@@ -176,7 +178,11 @@ function BottomNav({
   );
 }
 
-export function VendorDashboard() {
+export function VendorDashboard({
+  onNavigate,
+}: {
+  onNavigate?: (tab: string) => void;
+} = {}) {
   const [storeOpen, setStoreOpen] = useState(true);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [rushPause, setRushPause] = useState(false);
@@ -379,6 +385,54 @@ export function VendorDashboard() {
           </div>
         </section>
 
+        {/* Premises, Tables & Multi-Staff Ecosystem Module */}
+        <section className="relative px-5 pt-6 vendor-rise" style={{ animationDelay: "140ms" }}>
+          <SectionLabel action="Multi-Branch Active">Premises, Tables &amp; Staff</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate("vendor-flow/VendorTableManagement")}
+              className="flex items-center justify-between gap-3 rounded-[20px] border border-[#eadbcb] bg-[#fffaf3] p-3.5 text-left shadow-[0_8px_18px_rgba(75,48,30,0.05)] hover:border-[#d25e32] transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#ecfdf5] text-[#15803d] border border-[#bbf7d0]">
+                  <Armchair className="h-5 w-5" />
+                </span>
+                <div>
+                  <span className="block text-xs font-black text-[#302820]">
+                    Tables &amp; Multi-Branch
+                  </span>
+                  <span className="block text-[10px] text-[#9b826d]">
+                    Live floorplan, seat OTPs &amp; rush calibration
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#a88c76] group-hover:text-[#d25e32] group-hover:translate-x-0.5 transition-all" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate("vendor-flow/StaffManagement")}
+              className="flex items-center justify-between gap-3 rounded-[20px] border border-[#eadbcb] bg-[#fffaf3] p-3.5 text-left shadow-[0_8px_18px_rgba(75,48,30,0.05)] hover:border-[#d25e32] transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">
+                  <UsersRound className="h-5 w-5" />
+                </span>
+                <div>
+                  <span className="block text-xs font-black text-[#302820]">
+                    Staff &amp; Role-Based Access
+                  </span>
+                  <span className="block text-[10px] text-[#9b826d]">
+                    Cooks, Waiters &amp; Dispatcher credentials
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#a88c76] group-hover:text-[#d25e32] group-hover:translate-x-0.5 transition-all" />
+            </button>
+          </div>
+        </section>
+
         <section id="menu-section" className="relative px-5 pt-6 vendor-rise" style={{ animationDelay: "170ms" }}>
           <SectionLabel action="Edit menu">Menu availability</SectionLabel>
           <div className="rounded-[21px] border border-[#eadbcb] bg-[#fffaf3] shadow-[0_8px_18px_rgba(75,48,30,0.05)]">
@@ -442,21 +496,21 @@ export function VendorDashboard() {
         </section>
 
         <section className="relative px-5 pt-6 vendor-rise" style={{ animationDelay: "270ms" }}>
-          <SectionLabel action="View customers">Subscription &amp; pass plans</SectionLabel>
+          <SectionLabel action="Manage All" onAction={() => onNavigate && onNavigate("vendor-flow/VendorMealPlans")}>Subscription &amp; pass plans</SectionLabel>
           <div className="grid grid-cols-2 gap-2.5">
-            <button type="button" onClick={() => notify("Monthly Pass overview opened")} className="rounded-[20px] border border-[#d9e4d7] bg-[#edf4eb] p-3.5 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]">
+            <button type="button" onClick={() => onNavigate ? onNavigate("vendor-flow/VendorMealPlans") : notify("Monthly Pass overview opened")} className="rounded-[20px] border border-[#d9e4d7] bg-[#edf4eb] p-3.5 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer">
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#d1e3d0] text-[#4d795b]"><Ticket className="h-4 w-4" /></span>
               <p className="mt-3 text-[12px] font-extrabold text-[#3d604b]">Monthly Pass</p>
-              <p className="mt-0.5 text-[10px] text-[#66836c]">27 active diners</p>
-              <p className="mt-3 font-mono text-[17px] font-bold tracking-[-0.05em] text-[#3f6e51]">₹12,960</p>
-              <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#66836c]">This month <ArrowUpRight className="h-3 w-3" /></span>
+              <p className="mt-0.5 text-[10px] text-[#66836c]">88 active subscribers</p>
+              <p className="mt-3 font-mono text-[17px] font-bold tracking-[-0.05em] text-[#3f6e51]">₹2,06,800</p>
+              <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#66836c]">Manage Plans <ArrowUpRight className="h-3 w-3" /></span>
             </button>
-            <button type="button" onClick={() => notify("Prepaid plan overview opened")} className="rounded-[20px] border border-[#ecd8bf] bg-[#fff1df] p-3.5 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]">
+            <button type="button" onClick={() => onNavigate ? onNavigate("vendor-flow/VendorMealPlans") : notify("Weekly Pass overview opened")} className="rounded-[20px] border border-[#ecd8bf] bg-[#fff1df] p-3.5 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer">
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#f5d3ac] text-[#a5542c]"><WalletCards className="h-4 w-4" /></span>
-              <p className="mt-3 text-[12px] font-extrabold text-[#76442e]">Prepaid meals</p>
-              <p className="mt-0.5 text-[10px] text-[#a36f50]">84 redemptions today</p>
-              <p className="mt-3 font-mono text-[17px] font-bold tracking-[-0.05em] text-[#9d4d28]">₹24,780</p>
-              <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#a36f50]">Settles tomorrow <ArrowUpRight className="h-3 w-3" /></span>
+              <p className="mt-3 text-[12px] font-extrabold text-[#76442e]">Weekly Pass</p>
+              <p className="mt-0.5 text-[10px] text-[#a36f50]">42 active subscribers</p>
+              <p className="mt-3 font-mono text-[17px] font-bold tracking-[-0.05em] text-[#9d4d28]">₹25,116</p>
+              <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#a36f50]">Manage Plans <ArrowUpRight className="h-3 w-3" /></span>
             </button>
           </div>
         </section>

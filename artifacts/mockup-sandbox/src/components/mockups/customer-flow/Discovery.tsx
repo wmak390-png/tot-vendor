@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  Armchair,
   ArrowRight,
+  Building,
   Clock,
   Coffee,
   Flame,
@@ -14,6 +16,7 @@ import {
   Sparkles,
   Star,
   Store,
+  Ticket,
   Timer,
   Utensils,
   Zap,
@@ -141,7 +144,7 @@ export function Discovery({ onNavigate }: { onNavigate?: (tab: string) => void }
         </header>
 
         {/* Value Banner */}
-        <section className="px-4 pt-3.5">
+        <section className="px-4 pt-3.5 space-y-2">
           <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-[#ed6c2d] to-[#dd5616] p-3 text-white shadow-sm">
             <div>
               <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[#ffe5d3]">
@@ -155,6 +158,63 @@ export function Discovery({ onNavigate }: { onNavigate?: (tab: string) => void }
             <span className="rounded-xl bg-black/20 px-2.5 py-1 text-[10px] font-mono font-bold">
               0 Wait
             </span>
+          </div>
+
+          {/* Quick Action Feature Banners: Meal Pass & Seat Reservation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Table & Seat Reservations Link */}
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate("customer-flow/SeatReservation")}
+              className="w-full text-left rounded-2xl bg-[#fff] border border-[#e5dcd1] p-3 shadow-xs hover:border-[#ed6c2d] transition-all flex items-center justify-between gap-2.5 group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#ecfdf5] text-[#15803d] shrink-0 border border-[#bbf7d0]">
+                  <Armchair className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-[#242b26]">
+                      Reserve Tables &amp; Seats
+                    </span>
+                    <span className="rounded-full bg-[#fef3c7] px-1.5 py-0.2 text-[9px] font-bold text-[#92400e]">
+                      Live Rush
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#716155]">
+                    Book mess/canteen seats ahead of rush.
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#9c897a] group-hover:text-[#ed6c2d] group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
+
+            {/* Meal Pass Quick Link */}
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate("customer-flow/MealPasses")}
+              className="w-full text-left rounded-2xl bg-[#fff] border border-[#e5dcd1] p-3 shadow-xs hover:border-[#ed6c2d] transition-all flex items-center justify-between gap-2.5 group cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff7ed] text-[#ed6c2d] shrink-0 border border-[#fed7aa]">
+                  <Ticket className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-[#242b26]">
+                      Weekly &amp; Monthly Passes
+                    </span>
+                    <span className="rounded-full bg-[#ecfdf5] px-1.5 py-0.2 text-[9px] font-bold text-[#16a34a]">
+                      Save 35%
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#716155]">
+                    Prepaid daily thalis. Zero checkout.
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#9c897a] group-hover:text-[#ed6c2d] group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
           </div>
         </section>
 

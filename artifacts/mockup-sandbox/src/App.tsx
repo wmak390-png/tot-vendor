@@ -120,23 +120,42 @@ function TakeOnTimeEcosystemShell({
   const vendorViews = [
     { id: "vendor-flow/VendorDashboard", label: "Control Room", icon: "📊" },
     { id: "vendor-flow/Orders", label: "Kitchen Orders", icon: "🧾" },
+    { id: "vendor-flow/VendorTableManagement", label: "Tables & Branches", icon: "🪑" },
+    { id: "vendor-flow/StaffManagement", label: "Staff & RBAC", icon: "👥" },
+    { id: "vendor-flow/VendorMealPlans", label: "Meal Plans / Pass", icon: "🎫" },
+    { id: "vendor-flow/KitchenDisplaySystem", label: "KDS Station", icon: "🍳" },
     { id: "vendor-flow/Menu", label: "Menu & Items", icon: "🍲" },
+    { id: "vendor-flow/VendorSettlements", label: "Daily Payouts", icon: "💰" },
     { id: "vendor-flow/Store", label: "Store Settings", icon: "🏪" },
+    { id: "vendor-flow/Notifications", label: "Kitchen Alerts", icon: "🔔" },
     { id: "vendor-flow/MoreProfile", label: "Profile & Bank", icon: "💼" },
     { id: "vendor-flow/OnboardingAuth", label: "Auth / Onboard", icon: "🔑" },
+    { id: "vendor-flow/PendingApprovalPage", label: "Pending Review", icon: "⏳" },
+    { id: "vendor-flow/AccountIssuePage", label: "Account Action", icon: "⚠️" },
     { id: "vendor-flow/Verification", label: "Verification", icon: "🛡️" },
   ];
 
   const customerViews = [
+    { id: "customer-flow/CustomerAuth", label: "Sign In / Pass", icon: "🔑" },
     { id: "customer-flow/Discovery", label: "Canteen Discovery", icon: "📍" },
+    { id: "customer-flow/SeatReservation", label: "Table Reservations", icon: "🪑" },
+    { id: "customer-flow/MealPasses", label: "Meal Plans & Pass", icon: "🎫" },
     { id: "customer-flow/VendorMenu", label: "Food Menu", icon: "🍽️" },
     { id: "customer-flow/Checkout", label: "Pickup Bag & Pay", icon: "💳" },
     { id: "customer-flow/OrderTracking", label: "Live Tracker & OTP", icon: "⏱️" },
+    { id: "customer-flow/PickupDirections", label: "Pickup Directions", icon: "🗺️" },
+    { id: "customer-flow/OrderFeedback", label: "Food Review & Help", icon: "⭐" },
+    { id: "customer-flow/CustomerNotifications", label: "Order Alerts", icon: "🔔" },
     { id: "customer-flow/CustomerOrders", label: "Past Orders", icon: "📜" },
+    { id: "customer-flow/CustomerProfile", label: "Campus Pass & Perks", icon: "👤" },
   ];
 
   const adminViews = [
-    { id: "admin-flow/AdminConsole", label: "Operations & Compliance", icon: "🛡️" },
+    { id: "admin-flow/AdminConsole", label: "Operations HQ", icon: "🛡️" },
+    { id: "admin-flow/AdminVendorApprovals", label: "Vendor KYC Audit", icon: "📋" },
+    { id: "admin-flow/AdminCampusManagement", label: "Campuses & Bays", icon: "🏢" },
+    { id: "admin-flow/AdminSettlementAudit", label: "11:30 PM Batch Audit", icon: "💸" },
+    { id: "admin-flow/AdminPlatformSettings", label: "Platform Config", icon: "⚙️" },
   ];
 
   const handleNavigate = (path: string) => {

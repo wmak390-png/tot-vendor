@@ -1,6 +1,6 @@
 {
   "name": "TakeOnTime Vendor",
-  "description": "Vendor operations application for TakeOnTime food partners to manage menus, track live orders, control availability, and oversee operations.",
+  "description": "Comprehensive TakeOnTime campus dining ecosystem supporting all sectors (institutes & mess, tech parks & corporate, hospitals, industrial plants, hotels). Features multi-branch premises management, live rush-calibrated table & seat reservations with OTP check-ins, multi-staff role-based access control (owner, cook KDS, waiter floor terminal, express dispatcher), weekly & monthly meal subscription passes, and full vendor/customer/admin operations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
