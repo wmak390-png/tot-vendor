@@ -1,25 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Armchair,
   ArrowLeft,
   ArrowRight,
   Check,
   ChevronDown,
   Clock,
   Heart,
+  Hotel,
   Info,
   MapPin,
   Minus,
+  Package,
   Plus,
   Search,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
   Star,
+  Ticket,
   Timer,
   Utensils,
   X,
 } from "lucide-react";
-import { takeOnTimeStore, type Vendor, type OrderItem } from "@/lib/takeontime-store";
+import { takeOnTimeStore, getVendorFeatures, type Vendor, type OrderItem } from "@/lib/takeontime-store";
 
 type CustomerMenuItem = {
   id: number;
@@ -136,22 +140,27 @@ const menuItemsData: CustomerMenuItem[] = [
 const categories = ["All Items", "Breakfast", "Thalis & Meals", "Bowls & Snacks", "Beverages"];
 
 export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void }) {
-  const [vendor, setVendor] = useState<Vendor | undefined>(takeOnTimeStore.getVendorById("vendor_little_fern"));
+  const [vendor, setVendor] = useState<Vendor>(() => takeOnTimeStore.getCurrentVendor());
   const [cart, setCart] = useState(takeOnTimeStore.getCart());
   const [selectedCategory, setSelectedCategory] = useState("All Items");
   const [search, setSearch] = useState("");
   const [customizingItem, setCustomizingItem] = useState<CustomerMenuItem | null>(null);
   const [itemNote, setItemNote] = useState("");
   const [portionCount, setPortionCount] = useState(1);
+  const [packInTiffinBox, setPackInTiffinBox] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = takeOnTimeStore.subscribe(() => {
-      setVendor(takeOnTimeStore.getVendorById("vendor_little_fern"));
+      setVendor(takeOnTimeStore.getCurrentVendor());
       setCart(takeOnTimeStore.getCart());
     });
     return unsub;
   }, []);
+
+  const vendorFeatures = useMemo(() => {
+    return getVendorFeatures(vendor?.businessType || "all");
+  }, [vendor?.businessType]);
 
   const notify = (msg: string) => {
     setToast(msg);
@@ -177,7 +186,11 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
       {
         id: it.id,
         name: it.name,
-        detail: it.prepTime ? `Prep: ${it.prepTime}` : undefined,
+        detail: packInTiffinBox
+          ? `[Tiffin Box Packed] Prep: ${it.prepTime}`
+          : it.prepTime
+          ? `Prep: ${it.prepTime}`
+          : undefined,
         quantity: 1,
         price: it.priceFormatted,
         priceNum: it.price,
@@ -190,11 +203,19 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
 
   const handleConfirmCustomization = () => {
     if (!customizingItem) return;
+    const note = [
+      packInTiffinBox ? "Pack in Insulated Mess Tiffin Box" : "",
+      itemNote,
+      `Prep: ${customizingItem.prepTime}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
     takeOnTimeStore.addToCart(
       {
         id: customizingItem.id,
         name: customizingItem.name,
-        detail: itemNote ? itemNote : `Prep: ${customizingItem.prepTime}`,
+        detail: note || undefined,
         quantity: portionCount,
         price: `₹${customizingItem.price * portionCount}`,
         priceNum: customizingItem.price * portionCount,
@@ -225,18 +246,24 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
           <button
             type="button"
             onClick={() => onNavigate && onNavigate("customer-flow/Discovery")}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-[#323c34] text-[#f5ebd9] hover:bg-[#434f47]"
+            className="grid h-9 w-9 place-items-center rounded-xl bg-[#323c34] text-[#f5ebd9] hover:bg-[#434f47] cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="text-center">
-            <h1 className="text-xs font-black uppercase tracking-wider text-[#e5a67f]">Counter Menu</h1>
-            <p className="text-sm font-bold text-white">{vendor?.name || "Little Fern Kitchen"}</p>
+            <h1 className="text-xs font-black uppercase tracking-wider text-[#e5a67f]">
+              {vendor.businessType === "hotel"
+                ? "Hotel Dining Menu"
+                : vendor.businessType === "mess"
+                ? "Daily Mess & Thalis"
+                : "Counter Menu"}
+            </h1>
+            <p className="text-sm font-bold text-white">{vendor?.name}</p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate && onNavigate("customer-flow/Checkout")}
-            className="relative grid h-9 w-9 place-items-center rounded-xl bg-[#323c34] text-[#f5ebd9]"
+            className="relative grid h-9 w-9 place-items-center rounded-xl bg-[#323c34] text-[#f5ebd9] cursor-pointer"
           >
             <ShoppingBag className="h-4 w-4" />
             {cartTotalItems > 0 && (
@@ -247,15 +274,27 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
           </button>
         </header>
 
-        {/* Vendor Banner Info */}
+        {/* Vendor Banner Info with Business Type Features */}
         <section className="bg-white p-4 border-b border-[#e9ddd1]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-lg font-black text-[#27201c]">{vendor?.name}</h2>
-                <span className="rounded-md bg-[#e8f4ec] px-1.5 py-0.5 text-[9px] font-extrabold text-[#2d7a46]">
-                  Counter 2
-                </span>
+                {vendor.businessType === "hotel" && (
+                  <span className="rounded-md bg-[#f3e8ff] px-2 py-0.5 text-[10px] font-black text-[#7e22ce] border border-[#d8b4fe]">
+                    🏨 Hotel Dining
+                  </span>
+                )}
+                {vendor.businessType === "mess" && (
+                  <span className="rounded-md bg-[#ecfdf5] px-2 py-0.5 text-[10px] font-black text-[#15803d] border border-[#a7f3d0]">
+                    🍱 Mess Counter
+                  </span>
+                )}
+                {vendor.businessType === "all" && (
+                  <span className="rounded-md bg-[#fff7ed] px-2 py-0.5 text-[10px] font-black text-[#c2410c] border border-[#fed7aa]">
+                    ⭐ All Facilities
+                  </span>
+                )}
               </div>
               <p className="text-xs text-[#7d695b] mt-0.5">{vendor?.tagline}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#6e5d51]">
@@ -270,11 +309,119 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
                 </span>
                 <span>·</span>
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#2d7a46]">
-                  <ShieldCheck className="h-3.5 w-3.5" /> FSSAI Verified
+                  <ShieldCheck className="h-3.5 w-3.5" /> FSSAI: {vendor?.fssaiNumber}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Conditional Feature Callouts: Hotel vs Mess */}
+          {vendor.businessType === "hotel" && (
+            <div className="mt-3 rounded-2xl bg-gradient-to-r from-[#faf5ff] to-[#f3e8ff] p-3 border border-[#e9d5ff] flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#7c3aed] text-white shrink-0 shadow-xs">
+                  <Armchair className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-[#581c87]">Reserved Table Dining Available</h4>
+                  <p className="text-[10px] text-[#7e22ce]">
+                    Skip waiting at the hostess counter. Pre-reserve a booth or garden terrace table.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate("customer-flow/SeatReservation")}
+                className="shrink-0 px-2.5 py-1.5 rounded-xl bg-[#7c3aed] text-white text-[11px] font-bold hover:bg-[#6d28d9] shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <span>Book Table</span>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {vendor.businessType === "mess" && (
+            <div className="mt-3 space-y-2">
+              {/* Mess Pass Banner */}
+              <div className="rounded-2xl bg-gradient-to-r from-[#ecfdf5] to-[#f0fdf4] p-3 border border-[#bbf7d0] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#16a34a] text-white shrink-0">
+                    <Ticket className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-[#14532d]">Have a Student or Staff Meal Pass?</h4>
+                    <p className="text-[10px] text-[#166534]">
+                      Zero checkout balance. Redeem today's fixed lunch thali with 1-tap.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => notify("Pass verified: 1x Andhra Special Meal Thali redeemed!")}
+                  className="shrink-0 px-2.5 py-1.5 rounded-xl bg-[#16a34a] text-white text-[10px] font-black hover:bg-[#15803d] shadow-xs cursor-pointer"
+                >
+                  1-Tap Redeem
+                </button>
+              </div>
+
+              {/* Mess Seat & Tiffin Pickup Reservation */}
+              <div className="rounded-2xl bg-[#faf6f0] p-2.5 border border-[#ebdcd0] flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-[#ea580c]" />
+                  <span className="text-[11px] text-[#716155] font-semibold">
+                    Reserve Mess Seat or schedule Tiffin Pickup slot
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigate && onNavigate("customer-flow/SeatReservation")}
+                  className="text-[11px] font-black text-[#ea580c] hover:underline cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>Reserve</span>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+
+              {/* Tiffin Packaging Checkbox */}
+              <label className="flex items-center gap-2 rounded-xl bg-[#fff7ed] p-2 border border-[#fed7aa] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={packInTiffinBox}
+                  onChange={(e) => setPackInTiffinBox(e.target.checked)}
+                  className="rounded text-[#ed6c2d] focus:ring-[#ed6c2d] h-4 w-4"
+                />
+                <div className="text-[11px] text-[#7c2d12]">
+                  <span className="font-bold">Pack in Reusable/Insulated Mess Dabba</span>
+                  <span className="text-[10px] text-[#9a3412] ml-1">(Zero waste student &amp; desk pickup)</span>
+                </div>
+              </label>
+            </div>
+          )}
+
+          {vendor.businessType === "all" && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate("customer-flow/SeatReservation")}
+                className="p-2 rounded-xl bg-[#f5f3ff] border border-[#ddd6fe] text-left hover:bg-[#ede9fe] transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5 text-[11px] font-black text-[#6d28d9]">
+                  <Armchair className="h-3.5 w-3.5" /> Table &amp; Seats
+                </div>
+                <p className="text-[10px] text-[#7c3aed]">Reserve restaurant tables or mess stools</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate("customer-flow/MealPasses")}
+                className="p-2 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] text-left hover:bg-[#dbeafe] transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5 text-[11px] font-black text-[#1d4ed8]">
+                  <Ticket className="h-3.5 w-3.5" /> Meal Passes
+                </div>
+                <p className="text-[10px] text-[#2563eb]">Weekly &amp; monthly prepaid passes</p>
+              </button>
+            </div>
+          )}
 
           <div className="mt-3 rounded-xl bg-[#fdf5ed] p-2.5 text-xs text-[#7e563e] flex items-center justify-between border border-[#f7e4d3]">
             <div className="flex items-center gap-2">
@@ -296,7 +443,7 @@ export function VendorMenu({ onNavigate }: { onNavigate?: (tab: string) => void 
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                     active
                       ? "bg-[#242b26] text-white shadow-sm"
                       : "bg-white text-[#6b5a4d] border border-[#e4d6c7] hover:bg-[#f5ece2]"

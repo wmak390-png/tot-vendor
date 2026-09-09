@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertCircle,
   Armchair,
@@ -17,40 +17,79 @@ import {
   Mail,
   MapPin,
   Phone,
+  Plus,
   Shield,
   ShieldCheck,
   Sparkles,
   Ticket,
+  Trash2,
   User,
+  UserPlus,
+  Users,
   Utensils,
   Wallet,
   Zap,
 } from "lucide-react";
+import { takeOnTimeStore, type CustomerProfile as CustomerProfileType } from "@/lib/takeontime-store";
 
 export function CustomerProfile({
   onNavigate,
 }: {
   onNavigate?: (tab: string) => void;
 }) {
-  const [name, setName] = useState("Maya Rodriguez");
-  const [email, setEmail] = useState("maya.rodriguez@techcorp.com");
-  const [phone, setPhone] = useState("+91 98451 22910");
-  const [campus, setCampus] = useState("Embassy TechVillage, Bengaluru");
-  const [building, setBuilding] = useState("Block 2A, 4th Floor (Seat 412)");
+  const [profile, setProfile] = useState<CustomerProfileType>(() =>
+    takeOnTimeStore.getCustomerProfile()
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(profile.name);
+  const [editEmail, setEditEmail] = useState(profile.email);
+  const [editPhone, setEditPhone] = useState(profile.phone);
+  const [editCampus, setEditCampus] = useState(profile.campus);
+  const [editDesk, setEditDesk] = useState(profile.deskLocation);
+  const [editIdNumber, setEditIdNumber] = useState(profile.corporateId || "EMP-94821");
+
+  // Pickup Buddy / Sub-staff delegate state
+  const [buddyName, setBuddyName] = useState("Karan Patel");
+  const [buddyPhone, setBuddyPhone] = useState("+91 98450 77123");
+  const [buddyRole, setBuddyRole] = useState("Desk Mate / Pickup Sub-Delegate");
+  const [showAddBuddy, setShowAddBuddy] = useState(false);
 
   // Preferences
-  const [pureVegOnly, setPureVegOnly] = useState(false);
-  const [nutAllergy, setNutAllergy] = useState(true);
-  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
-  const [inAppBuzzer, setInAppBuzzer] = useState(true);
+  const [pureVegOnly, setPureVegOnly] = useState(profile.pureVegOnly);
+  const [nutAllergy, setNutAllergy] = useState(profile.nutAllergy);
+  const [whatsappAlerts, setWhatsappAlerts] = useState(profile.whatsappAlerts);
+  const [inAppBuzzer, setInAppBuzzer] = useState(profile.inAppBuzzer);
 
-  // Corporate pass verification
-  const [corporateVerified, setCorporateVerified] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = takeOnTimeStore.subscribe(() => {
+      const p = takeOnTimeStore.getCustomerProfile();
+      setProfile(p);
+    });
+    return unsub;
+  }, []);
 
   const notify = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSaveProfile = () => {
+    takeOnTimeStore.updateCustomerProfile({
+      name: editName,
+      email: editEmail,
+      phone: editPhone,
+      campus: editCampus,
+      deskLocation: editDesk,
+      corporateId: editIdNumber,
+      pureVegOnly,
+      nutAllergy,
+      whatsappAlerts,
+      inAppBuzzer,
+    });
+    setIsEditing(false);
+    notify("Profile & campus preferences updated successfully!");
   };
 
   return (
@@ -71,40 +110,149 @@ export function CustomerProfile({
               <span className="text-xs font-black uppercase tracking-widest text-[#f09562]">
                 TakeOnTime
               </span>
-              <span className="text-xs text-[#8a9e8f]">· Campus Pass</span>
+              <span className="text-xs text-[#8a9e8f]">· Campus Profile &amp; Pass</span>
             </div>
             {onNavigate && (
               <button
                 type="button"
                 onClick={() => onNavigate("customer-flow/Discovery")}
-                className="text-xs font-semibold text-[#8bf2a9] hover:underline"
+                className="text-xs font-semibold text-[#8bf2a9] hover:underline cursor-pointer"
               >
                 Back to Food Courts
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-[#ed6c2d] flex items-center justify-center text-2xl font-black text-white shadow-lg border-2 border-white/20">
-              MR
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white">{name}</h1>
-                {corporateVerified && (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-[#ed6c2d] flex items-center justify-center text-2xl font-black text-white shadow-lg border-2 border-white/20">
+                {profile.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-white">{profile.name}</h1>
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#274830] px-2.5 py-0.5 text-[11px] font-bold text-[#4ed976] border border-[#3b6646]">
                     <ShieldCheck className="h-3.5 w-3.5" /> VERIFIED EMPLOYEE
                   </span>
-                )}
+                </div>
+                <p className="text-xs text-[#a3bba9] mt-0.5">{profile.campus}</p>
+                <p className="text-[11px] text-[#718576] font-mono">
+                  {profile.phone} · ID: {profile.corporateId}
+                </p>
               </div>
-              <p className="text-xs text-[#a3bba9] mt-0.5">{campus}</p>
-              <p className="text-[11px] text-[#718576] font-mono">{phone}</p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all cursor-pointer"
+            >
+              {isEditing ? "Cancel" : "Edit Profile"}
+            </button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-2xl px-4 -mt-4 space-y-4">
+        {/* Profile Edit Card (when toggled) */}
+        {isEditing && (
+          <section
+            aria-label="Edit Profile"
+            className="rounded-2xl bg-white p-5 shadow-md border-2 border-[#ed6c2d] animate-in fade-in"
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-[#f0e8dc] pb-2.5">
+              <h2 className="text-sm font-black text-[#1c241e] flex items-center gap-2">
+                <User className="h-4 w-4 text-[#ed6c2d]" /> Edit Personal &amp; Campus Details
+              </h2>
+              <span className="text-[10px] font-bold text-[#ed6c2d] uppercase">Instant Store Sync</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Full Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Work Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Phone Number</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Employee / Student ID</label>
+                <input
+                  type="text"
+                  value={editIdNumber}
+                  onChange={(e) => setEditIdNumber(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Registered Campus</label>
+                <input
+                  type="text"
+                  value={editCampus}
+                  onChange={(e) => setEditCampus(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#617466] mb-1 font-semibold">Desk Location / Tower</label>
+                <input
+                  type="text"
+                  value={editDesk}
+                  onChange={(e) => setEditDesk(e.target.value)}
+                  className="w-full bg-[#f4f7f4] border border-[#d9e2da] rounded-xl px-3 py-2 text-[#1c241e] font-medium focus:outline-none focus:ring-2 focus:ring-[#ed6c2d]"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-3 py-1.5 rounded-xl border border-[#d9e2da] text-xs font-semibold text-[#617466] hover:bg-[#f4f7f4] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                className="px-4 py-1.5 rounded-xl bg-[#ed6c2d] hover:bg-[#d95d20] text-white text-xs font-bold shadow-sm cursor-pointer"
+              >
+                Save Profile Changes
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Corporate Perk Badge Card */}
         <section aria-label="Corporate Discount Benefit" className="rounded-2xl bg-white p-4 shadow-sm border border-[#e2e8e2] flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -285,6 +433,82 @@ export function CustomerProfile({
           </div>
         </section>
 
+        {/* Authorized Pickup Buddies / Sub-Delegates */}
+        <section aria-label="Authorized Sub-Delegates" className="rounded-2xl bg-white p-4 shadow-sm border border-[#e2e8e2]">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#617466] flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-[#ed6c2d]" /> Pickup Buddies &amp; Sub-Delegates
+              </h2>
+              <p className="text-[11px] text-[#86998b] mt-0.5">
+                Authorized colleagues or family who can collect your hot food, tiffins, or meal passes with OTP
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddBuddy(!showAddBuddy)}
+              className="flex items-center gap-1 text-xs font-bold text-[#ed6c2d] hover:bg-[#fff7ed] px-2.5 py-1 rounded-lg border border-[#fed7aa] transition-colors cursor-pointer"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>{showAddBuddy ? "Close" : "Add Buddy"}</span>
+            </button>
+          </div>
+
+          {showAddBuddy && (
+            <div className="mb-3 p-3 rounded-xl bg-[#fff7ed]/60 border border-[#fed7aa] space-y-2 text-xs">
+              <span className="font-bold text-[#9a3412]">Register New Pickup Sub-Delegate</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Delegate Full Name"
+                  value={buddyName}
+                  onChange={(e) => setBuddyName(e.target.value)}
+                  className="bg-white border border-[#fed7aa] rounded-lg px-2.5 py-1.5"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number (+91 ...)"
+                  value={buddyPhone}
+                  onChange={(e) => setBuddyPhone(e.target.value)}
+                  className="bg-white border border-[#fed7aa] rounded-lg px-2.5 py-1.5"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddBuddy(false);
+                  notify(`Pickup authorization granted to ${buddyName} (${buddyPhone})!`);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#ed6c2d] text-white text-xs font-bold hover:bg-[#de5f20] cursor-pointer"
+              >
+                Authorize Delegate
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f8faf8] border border-[#e6ece6] text-xs">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-[#e0f2fe] text-[#0369a1] font-bold flex items-center justify-center text-xs">
+                  KP
+                </div>
+                <div>
+                  <div className="font-bold text-[#1c241e] flex items-center gap-1.5">
+                    <span>{buddyName}</span>
+                    <span className="bg-[#e0e7ff] text-[#3730a3] text-[9px] font-bold px-1.5 py-0.2 rounded">
+                      DELEGATE
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#617466]">{buddyPhone} · {buddyRole}</div>
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-[#15803d] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
+                OTP Shared
+              </span>
+            </div>
+          </div>
+        </section>
+
         {/* Saved Payment Methods */}
         <section aria-label="Saved Payment Instruments" className="rounded-2xl bg-white p-4 shadow-sm border border-[#e2e8e2]">
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#617466] mb-3 flex items-center gap-1.5">
@@ -322,10 +546,10 @@ export function CustomerProfile({
         {/* Save button */}
         <button
           type="button"
-          onClick={() => notify("Campus preferences & profile saved successfully!")}
+          onClick={handleSaveProfile}
           className="w-full py-3 rounded-xl font-bold text-xs bg-[#ed6c2d] hover:bg-[#d95d20] text-white shadow-md transition-all cursor-pointer"
         >
-          Save All Preferences
+          Save All Preferences &amp; Profile
         </button>
       </div>
     </main>

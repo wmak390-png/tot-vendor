@@ -32,12 +32,71 @@ export type Order = {
   counterNumber?: string;
 };
 
+export type VendorBusinessType = "hotel" | "mess" | "all";
+
+export type VendorFeatureConfig = {
+  hasTableReservations: boolean; // Hotel: fine table dining; Mess: seat reservation for pass holders or single regular
+  hasAvailableMeals: boolean;
+  hasMealPasses: boolean; // Only mess & all
+  hasTiffinPickup: boolean; // Only mess & all (for passes or single regular)
+  hasSingleRegularMeals: boolean;
+  hasKdsStation: boolean;
+  hasDeskDelivery: boolean;
+  reservationMode: "hotel_table" | "mess_seat" | "all";
+  typeLabel: string;
+  badge: string;
+};
+
+export function getVendorFeatures(type: VendorBusinessType = "all"): VendorFeatureConfig {
+  if (type === "hotel") {
+    return {
+      hasTableReservations: true,
+      hasAvailableMeals: true,
+      hasMealPasses: false,
+      hasTiffinPickup: false,
+      hasSingleRegularMeals: true,
+      hasKdsStation: true,
+      hasDeskDelivery: false,
+      reservationMode: "hotel_table",
+      typeLabel: "Hotel & Restaurant",
+      badge: "🏨 Hotel Dining",
+    };
+  }
+  if (type === "mess") {
+    return {
+      hasTableReservations: true, // table/seat reservations (for passes, or single regular)
+      hasAvailableMeals: true,
+      hasMealPasses: true, // pass (weekly / monthly)
+      hasTiffinPickup: true, // tiffin pickup (for passes, or single regular)
+      hasSingleRegularMeals: true,
+      hasKdsStation: true,
+      hasDeskDelivery: true,
+      reservationMode: "mess_seat",
+      typeLabel: "Campus & Worker Mess",
+      badge: "🍱 Mess & Thalis",
+    };
+  }
+  return {
+    hasTableReservations: true,
+    hasAvailableMeals: true,
+    hasMealPasses: true,
+    hasTiffinPickup: true,
+    hasSingleRegularMeals: true,
+    hasKdsStation: true,
+    hasDeskDelivery: true,
+    reservationMode: "all",
+    typeLabel: "All-in-One Facility",
+    badge: "⭐ Full Facility",
+  };
+}
+
 export type Vendor = {
   id: string;
   name: string;
   tagline: string;
   campus: string;
   cuisine: string;
+  businessType: VendorBusinessType;
   rating: number;
   reviewsCount: number;
   prepTime: string;
@@ -206,10 +265,11 @@ export type TableReservation = {
 const initialVendors: Vendor[] = [
   {
     id: "vendor_little_fern",
-    name: "Little Fern Kitchen",
-    tagline: "Homestyle South Indian meals, dosas & degree filter coffee",
+    name: "Little Fern Kitchen & Mess",
+    tagline: "Daily home-style thalis, student/worker mess passes & tiffin box pickup",
     campus: "Koramangala 4th Block, Bengaluru",
-    cuisine: "South Indian · Meals · Coffee",
+    cuisine: "South Indian · Homestyle Meals · Thalis",
+    businessType: "mess",
     rating: 4.8,
     reviewsCount: 342,
     prepTime: "8-12 min",
@@ -228,13 +288,14 @@ const initialVendors: Vendor[] = [
   },
   {
     id: "vendor_chai_point",
-    name: "Chai & Samosa Hub",
-    tagline: "Fresh cutting chai, bun maska & hot samosas",
-    campus: "Embassy TechVillage Food Court",
-    cuisine: "Snacks · Beverages · Chai",
-    rating: 4.6,
+    name: "The Grand Pavilion Bistro & Hotel",
+    tagline: "Fine dining hotel lounge, reserved tables & executive à la carte meals",
+    campus: "Royal Orchid Hotel Bay & Level 1",
+    cuisine: "Continental · Asian · Mocktails & Meals",
+    businessType: "hotel",
+    rating: 4.9,
     reviewsCount: 512,
-    prepTime: "5-7 min",
+    prepTime: "12-18 min",
     isOpen: true,
     onBreak: false,
     isApproved: true,
@@ -245,31 +306,31 @@ const initialVendors: Vendor[] = [
     bankAccount: "••••••••4812 (ICICI)",
     ifsc: "ICIC0000456",
     upiId: "vikram.chai@icici",
-    todaySales: 3120,
+    todaySales: 6420,
     todayOrdersCount: 26,
   },
   {
     id: "vendor_dosa_corner",
-    name: "Royal Andhra Thali Co.",
-    tagline: "Authentic spicy Andhra meals & unlimited gun powder rice",
-    campus: "Ecospace Campus Canteen",
-    cuisine: "Andhra · Biryani · Thalis",
+    name: "Royal Andhra Mega Food Hub",
+    tagline: "Comprehensive dining: Weekly mess thalis, reserved family tables & live kitchen",
+    campus: "Ecospace Campus Central Food Hall",
+    cuisine: "Andhra · Biryani · Thalis & Cafe",
+    businessType: "all",
     rating: 4.7,
     reviewsCount: 198,
     prepTime: "10-15 min",
     isOpen: true,
     onBreak: false,
-    isApproved: false,
-    approvalStatus: "pending",
-    rejectionReason: undefined,
+    isApproved: true,
+    approvalStatus: "approved",
     fssaiNumber: "11822001004821",
     ownerName: "Ramesh Reddy",
     phone: "+91 97410 88201",
     bankAccount: "••••••••3910 (SBI)",
     ifsc: "SBIN0004128",
     upiId: "ramesh.thali@sbi",
-    todaySales: 0,
-    todayOrdersCount: 0,
+    todaySales: 3850,
+    todayOrdersCount: 14,
   },
 ];
 
@@ -804,8 +865,26 @@ const initialTableReservations: TableReservation[] = [
   },
 ];
 
+export type CustomerProfile = {
+  name: string;
+  email: string;
+  phone: string;
+  campus: string;
+  building: string;
+  studentOrEmpId: string;
+  dietaryPreference: "all" | "veg" | "jain" | "non-veg";
+  nutAllergy: boolean;
+  whatsappAlerts: boolean;
+  inAppBuzzer: boolean;
+  corporateVerified: boolean;
+  tiffinServiceOption: "own_dabba" | "insulated_takeaway" | "dine_in_only";
+  preferredVertical: "all" | "mess" | "hotel";
+  walletBalance: number;
+};
+
 class TakeOnTimeStore {
   private vendors: Vendor[] = initialVendors;
+  private currentVendorId: string = "vendor_little_fern";
   private orders: Order[] = initialOrders;
   private mealPlans: MealPlan[] = initialMealPlans;
   private userSubscription: UserSubscription | null = initialUserSubscription;
@@ -815,6 +894,22 @@ class TakeOnTimeStore {
   private tableReservations: TableReservation[] = initialTableReservations;
   private staffMembers: StaffMember[] = initialStaffMembers;
   private currentStaffRole: StaffRole = "owner";
+  private customerProfile: CustomerProfile = {
+    name: "Maya Rodriguez",
+    email: "maya.rodriguez@techcorp.com",
+    phone: "+91 98451 22910",
+    campus: "Embassy TechVillage, Bengaluru",
+    building: "Block 2A, 4th Floor (Seat 412)",
+    studentOrEmpId: "EMP-TECH-4821",
+    dietaryPreference: "veg",
+    nutAllergy: true,
+    whatsappAlerts: true,
+    inAppBuzzer: true,
+    corporateVerified: true,
+    tiffinServiceOption: "insulated_takeaway",
+    preferredVertical: "mess",
+    walletBalance: 1450,
+  };
   private cart: CustomerCart = {
     vendorId: "vendor_little_fern",
     vendorName: "Little Fern Kitchen",
@@ -859,12 +954,46 @@ class TakeOnTimeStore {
     return [...this.vendors];
   }
 
+  getCurrentVendorId() {
+    return this.currentVendorId;
+  }
+
+  setCurrentVendorId(id: string) {
+    if (this.vendors.some((v) => v.id === id)) {
+      this.currentVendorId = id;
+      this.notify();
+    }
+  }
+
+  getCurrentVendor(): Vendor {
+    return this.vendors.find((v) => v.id === this.currentVendorId) || this.vendors[0];
+  }
+
   getApprovedVendors() {
     return this.vendors.filter((v) => v.isApproved);
   }
 
   getVendorById(id: string) {
     return this.vendors.find((v) => v.id === id);
+  }
+
+  getCustomerProfile(): CustomerProfile {
+    return { ...this.customerProfile };
+  }
+
+  updateCustomerProfile(updates: Partial<CustomerProfile>) {
+    this.customerProfile = { ...this.customerProfile, ...updates };
+    this.notify();
+  }
+
+  setVendorBusinessType(vendorId: string, businessType: VendorBusinessType) {
+    this.vendors = this.vendors.map((v) => (v.id === vendorId ? { ...v, businessType } : v));
+    this.notify();
+  }
+
+  updateVendorProfile(vendorId: string, updates: Partial<Vendor>) {
+    this.vendors = this.vendors.map((v) => (v.id === vendorId ? { ...v, ...updates } : v));
+    this.notify();
   }
 
   getOrders(vendorId?: string) {
@@ -1402,6 +1531,14 @@ class TakeOnTimeStore {
     this.staffMembers = this.staffMembers.map((s) => {
       if (s.id !== staffId) return s;
       return { ...s, status, lastActive: "Just now" };
+    });
+    this.notify();
+  }
+
+  updateStaffMember(staffId: string, updates: Partial<StaffMember>) {
+    this.staffMembers = this.staffMembers.map((s) => {
+      if (s.id !== staffId) return s;
+      return { ...s, ...updates, lastActive: "Just now" };
     });
     this.notify();
   }

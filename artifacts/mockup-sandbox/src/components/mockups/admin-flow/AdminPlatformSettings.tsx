@@ -258,12 +258,90 @@ export function AdminPlatformSettings({
                   <button
                     type="button"
                     onClick={() => handleRemoveCategory(c)}
-                    className="p-1 text-[#718576] hover:text-[#f87171] transition-colors"
+                    className="p-1 text-[#718576] hover:text-[#f87171] transition-colors cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Admin Profile & Platform Sub-Staff */}
+        <div className="mt-6 rounded-2xl bg-[#19231c] border border-[#293b2d] p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#253528] pb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-[#ed6c2d] flex items-center justify-center font-black text-white text-sm">
+                AR
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-white">Aditi Rao (Platform Super Admin)</h2>
+                  <span className="rounded-full bg-[#1e3a24] text-[#4ed976] px-2 py-0.5 text-[10px] font-bold border border-[#2e5937]">
+                    ROOT ACCESS
+                  </span>
+                </div>
+                <p className="text-xs text-[#8a9e8f]">aditi.rao@takeontime.in · +91 98451 22334 · Bengaluru HQ</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => notify("Admin credentials & 2FA keys re-verified")}
+              className="px-3 py-1.5 rounded-xl bg-[#223326] text-[#8bf2a9] text-xs font-bold border border-[#2e4c36] hover:bg-[#2b4030] cursor-pointer"
+            >
+              Verify 2FA Keys
+            </button>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#8a9e8f]">
+                Platform Operations Sub-Staff &amp; Regional Delegates
+              </h3>
+              <button
+                type="button"
+                onClick={() => notify("New platform staff invite code dispatched to email")}
+                className="text-xs font-bold text-[#ed6c2d] hover:underline cursor-pointer"
+              >
+                + Invite Ops Staff
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-[#131a15] border border-[#253629] text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white">Rohan Varma</span>
+                  <span className="text-[9px] font-bold bg-[#1e2e22] text-[#8bf2a9] px-1.5 py-0.5 rounded">
+                    CAMPUS AUDITOR
+                  </span>
+                </div>
+                <p className="text-[#8a9e8f] text-[11px]">rohan.v@takeontime.in</p>
+                <div className="text-[10px] text-[#55695a] pt-1">Audits FSSAI &amp; hygiene logs</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#131a15] border border-[#253629] text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white">Sneha Nair</span>
+                  <span className="text-[9px] font-bold bg-[#1e283b] text-[#93c5fd] px-1.5 py-0.5 rounded">
+                    SETTLEMENT LEAD
+                  </span>
+                </div>
+                <p className="text-[#8a9e8f] text-[11px]">sneha.n@takeontime.in</p>
+                <div className="text-[10px] text-[#55695a] pt-1">NPCI Auto-Pay &amp; bank reconciliations</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#131a15] border border-[#253629] text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white">Vikram Das</span>
+                  <span className="text-[9px] font-bold bg-[#3b271d] text-[#fed7aa] px-1.5 py-0.5 rounded">
+                    DISPATCH OPS
+                  </span>
+                </div>
+                <p className="text-[#8a9e8f] text-[11px]">vikram.d@takeontime.in</p>
+                <div className="text-[10px] text-[#55695a] pt-1">Express bays &amp; cubby lockers</div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell,
   Building,
   CheckCircle,
   ChevronRight,
   CreditCard,
+  Crown,
   Download,
   ExternalLink,
   FileBadge2,
@@ -22,10 +23,20 @@ import {
   ShieldCheck,
   Store,
   User,
+  UserCheck,
+  UserPlus,
+  Users,
+  Utensils,
   Volume2,
   VolumeX,
   X,
 } from "lucide-react";
+import {
+  takeOnTimeStore,
+  type StaffMember,
+  type Vendor,
+  type VendorBusinessType,
+} from "@/lib/takeontime-store";
 
 export function MoreProfile({
   onNavigate,
@@ -34,14 +45,51 @@ export function MoreProfile({
   onNavigate?: (tab: string) => void;
   onLogout?: () => void;
 }) {
+  const [vendor, setVendor] = useState<Vendor>(() => takeOnTimeStore.getCurrentVendor());
+  const [staff, setStaff] = useState<StaffMember[]>(() => takeOnTimeStore.getStaffMembers());
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoPrintKOT, setAutoPrintKOT] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Edit Store Profile Form
+  const [editStoreName, setEditStoreName] = useState(vendor.name);
+  const [editOwnerName, setEditOwnerName] = useState(vendor.ownerName || "Priya Sharma");
+  const [editPhone, setEditPhone] = useState(vendor.phone);
+  const [editBusinessType, setEditBusinessType] = useState<VendorBusinessType>(vendor.businessType);
+
+  useEffect(() => {
+    const unsub = takeOnTimeStore.subscribe(() => {
+      const v = takeOnTimeStore.getCurrentVendor();
+      setVendor(v);
+      setStaff(takeOnTimeStore.getStaffMembers());
+    });
+    return unsub;
+  }, []);
+
   const notify = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSaveStoreProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    takeOnTimeStore.updateVendorBusinessType(vendor.id, editBusinessType);
+    takeOnTimeStore.setCurrentVendor({
+      ...vendor,
+      name: editStoreName,
+      ownerName: editOwnerName,
+      phone: editPhone,
+      businessType: editBusinessType,
+    });
+    setActiveModal(null);
+    notify(`Store updated! Features now configured for: ${editBusinessType.toUpperCase()}`);
+  };
+
+  const handleToggleStaffShift = (staffId: string, currentStatus: "on_shift" | "off_shift" | "on_break") => {
+    const nextStatus = currentStatus === "on_shift" ? "off_shift" : "on_shift";
+    takeOnTimeStore.updateStaffMember(staffId, { status: nextStatus });
+    notify(`Staff shift updated to ${nextStatus.replace("_", " ").toUpperCase()}`);
   };
 
   return (
@@ -84,23 +132,43 @@ export function MoreProfile({
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#dd693c] text-lg font-black text-[#fff9f1] shadow-sm">
-                  LF
+                  {vendor.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-base font-black text-[#29221d]">Little Fern Kitchen</h2>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h2 className="text-base font-black text-[#29221d]">{vendor.name}</h2>
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-[#e8f3ec] px-1.5 py-0.5 text-[9px] font-bold text-[#3d7a53]">
                       <ShieldCheck className="h-3 w-3" /> Verified
                     </span>
                   </div>
-                  <p className="text-xs text-[#7e6d61] mt-0.5">Partner ID: #TOT-VEN-104</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs text-[#7e6d61]">Partner ID: #{vendor.id}</span>
+                    <span className="rounded-full bg-[#faebe1] px-2 py-0.2 text-[9px] font-black text-[#dd693c] uppercase">
+                      {vendor.businessType === "hotel"
+                        ? "🏨 Hotel & Restaurant"
+                        : vendor.businessType === "mess"
+                        ? "🍱 Mess System"
+                        : "⭐ Multi-Facility"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => notify("Store profile editor opened")}
-                className="text-xs font-bold text-[#dd693c] hover:underline"
+                onClick={() => {
+                  setEditStoreName(vendor.name);
+                  setEditOwnerName(vendor.ownerName || "Priya Sharma");
+                  setEditPhone(vendor.phone);
+                  setEditBusinessType(vendor.businessType);
+                  setActiveModal("editProfile");
+                }}
+                className="text-xs font-bold text-[#dd693c] hover:underline cursor-pointer"
               >
                 Edit
               </button>
@@ -109,12 +177,89 @@ export function MoreProfile({
             <div className="mt-3.5 border-t border-[#eee2d6] pt-3 text-xs space-y-1.5 text-[#6c5c50]">
               <div className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 text-[#b09e91] shrink-0" />
-                <span className="truncate">Koramangala 4th Block, Bengaluru · 560034</span>
+                <span className="truncate">{vendor.location || "Koramangala 4th Block, Bengaluru · 560034"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5 text-[#b09e91] shrink-0" />
-                <span>+91 98765 43210 (Priya Sharma)</span>
+                <span>{vendor.phone} ({vendor.ownerName || "Priya Sharma"})</span>
               </div>
+            </div>
+          </div>
+
+          {/* Sub-Staff & Shift Management Card */}
+          <div className="rounded-2xl border border-[#ebdcd0] bg-[#fffdf9] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[#dd693c]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#7e6d61]">
+                  Sub-Staff &amp; Shift Access ({staff.length})
+                </h3>
+              </div>
+              {onNavigate && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate("vendor-flow/StaffManagement")}
+                  className="text-xs font-bold text-[#dd693c] hover:underline cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>Full Roster</span>
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-[#8e7e72]">
+              Tap staff member to toggle shift status or grant terminal access.
+            </p>
+
+            <div className="space-y-2">
+              {staff.map((s) => {
+                const isOnShift = s.status === "on_shift";
+                return (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-[#faf5ef] border border-[#eee2d6] text-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`h-7 w-7 rounded-lg grid place-items-center text-xs font-bold ${
+                          s.role === "owner"
+                            ? "bg-amber-100 text-amber-900"
+                            : s.role === "cook"
+                            ? "bg-emerald-100 text-emerald-900"
+                            : s.role === "waiter"
+                            ? "bg-blue-100 text-blue-900"
+                            : "bg-purple-100 text-purple-900"
+                        }`}
+                      >
+                        {s.name[0]}
+                      </div>
+                      <div>
+                        <div className="font-bold text-[#2d2420] flex items-center gap-1">
+                          <span>{s.name}</span>
+                          <span className="text-[9px] uppercase font-bold text-[#8e7e72]">
+                            ({s.role})
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-[#8e7e72]">
+                          PIN: {s.pinCode} · {s.phone}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStaffShift(s.id, s.status)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                        isOnShift
+                          ? "bg-[#e8f3ec] text-[#2e7d4d] border-[#bfe3cd] hover:bg-[#d8edd1]"
+                          : "bg-[#f3ede6] text-[#7d6e62] border-[#ded3c8] hover:bg-[#eae1d6]"
+                      }`}
+                    >
+                      {isOnShift ? "● ON DUTY" : "○ OFF DUTY"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -346,6 +491,155 @@ export function MoreProfile({
                   Chat on WhatsApp
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Store Profile & Business Type Modal */}
+        {activeModal === "editProfile" && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-[#e8dccf] max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-[#f0e3d7]">
+                <div className="flex items-center gap-2">
+                  <Store className="h-5 w-5 text-[#dd693c]" />
+                  <h3 className="font-extrabold text-sm text-[#2d2420]">Edit Store Profile</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="p-1 text-[#8e7e72] hover:text-black cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveStoreProfile} className="mt-4 space-y-3.5 text-xs text-[#52443a]">
+                <div>
+                  <label className="block text-[#6c5c50] font-bold mb-1">Kitchen / Outlet Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editStoreName}
+                    onChange={(e) => setEditStoreName(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8c9bc] bg-[#fbf8f5] px-3 py-2 text-xs font-medium text-[#29221d] focus:outline-none focus:border-[#dd693c]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#6c5c50] font-bold mb-1">Owner / Head Chef Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editOwnerName}
+                    onChange={(e) => setEditOwnerName(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8c9bc] bg-[#fbf8f5] px-3 py-2 text-xs font-medium text-[#29221d] focus:outline-none focus:border-[#dd693c]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#6c5c50] font-bold mb-1">Kitchen Dispatch Contact</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8c9bc] bg-[#fbf8f5] px-3 py-2 text-xs font-medium text-[#29221d] focus:outline-none focus:border-[#dd693c]"
+                  />
+                </div>
+
+                {/* Business Type & Feature Conditioning */}
+                <div>
+                  <label className="block text-[#6c5c50] font-bold mb-1.5">
+                    Facility Type &amp; Feature Conditioning
+                  </label>
+                  <div className="space-y-2">
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        editBusinessType === "hotel"
+                          ? "bg-[#fff7ed] border-[#ea580c] ring-1 ring-[#ea580c]"
+                          : "bg-[#fcfaf7] border-[#ebdcd0] hover:bg-[#f6efe8]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="businessType"
+                        value="hotel"
+                        checked={editBusinessType === "hotel"}
+                        onChange={() => setEditBusinessType("hotel")}
+                        className="mt-0.5 accent-[#ea580c]"
+                      />
+                      <div>
+                        <span className="font-bold text-[#2d2420] block">🏨 Hotel / Dine-in Restaurant</span>
+                        <p className="text-[10px] text-[#78675b] leading-tight mt-0.5">
+                          Features: Table reservations, dining room seating &amp; available prepared meals only.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        editBusinessType === "mess"
+                          ? "bg-[#eff6ff] border-[#2563eb] ring-1 ring-[#2563eb]"
+                          : "bg-[#fcfaf7] border-[#ebdcd0] hover:bg-[#f6efe8]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="businessType"
+                        value="mess"
+                        checked={editBusinessType === "mess"}
+                        onChange={() => setEditBusinessType("mess")}
+                        className="mt-0.5 accent-[#2563eb]"
+                      />
+                      <div>
+                        <span className="font-bold text-[#2d2420] block">🍱 Mess / Canteen Facility</span>
+                        <p className="text-[10px] text-[#78675b] leading-tight mt-0.5">
+                          Features: Seat reservations (passes or regular), meal passes &amp; tiffin pickup (passes or regular).
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        editBusinessType === "all"
+                          ? "bg-[#ecfdf5] border-[#059669] ring-1 ring-[#059669]"
+                          : "bg-[#fcfaf7] border-[#ebdcd0] hover:bg-[#f6efe8]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="businessType"
+                        value="all"
+                        checked={editBusinessType === "all"}
+                        onChange={() => setEditBusinessType("all")}
+                        className="mt-0.5 accent-[#059669]"
+                      />
+                      <div>
+                        <span className="font-bold text-[#2d2420] block">⭐ Multi-Facility / All Features</span>
+                        <p className="text-[10px] text-[#78675b] leading-tight mt-0.5">
+                          Unlocks all capabilities: tables, seats, passes, tiffins &amp; live counter ordering.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="px-3 py-2 rounded-xl border border-[#d8c9bc] text-xs font-semibold text-[#6c5c50] hover:bg-[#f8f2eb] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-[#dd693c] hover:bg-[#c85a2f] text-white text-xs font-bold shadow-sm cursor-pointer"
+                  >
+                    Save &amp; Update Features
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

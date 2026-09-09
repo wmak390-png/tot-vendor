@@ -1,4 +1,5 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, useMemo, type ComponentType } from "react";
+import { takeOnTimeStore, getVendorFeatures, type Vendor, type VendorBusinessType } from "@/lib/takeontime-store";
 
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
@@ -116,24 +117,72 @@ function TakeOnTimeEcosystemShell({
   type AppRole = "vendor" | "customer" | "admin";
   const [appRole, setAppRole] = useState<AppRole>("vendor");
   const [activeTab, setActiveTab] = useState<string>("vendor-flow/VendorDashboard");
+  const [currentVendor, setCurrentVendor] = useState<Vendor>(() => takeOnTimeStore.getCurrentVendor());
+  const [vendors, setVendors] = useState<Vendor[]>(() => takeOnTimeStore.getVendors());
 
-  const vendorViews = [
-    { id: "vendor-flow/VendorDashboard", label: "Control Room", icon: "📊" },
-    { id: "vendor-flow/Orders", label: "Kitchen Orders", icon: "🧾" },
-    { id: "vendor-flow/VendorTableManagement", label: "Tables & Branches", icon: "🪑" },
-    { id: "vendor-flow/StaffManagement", label: "Staff & RBAC", icon: "👥" },
-    { id: "vendor-flow/VendorMealPlans", label: "Meal Plans / Pass", icon: "🎫" },
-    { id: "vendor-flow/KitchenDisplaySystem", label: "KDS Station", icon: "🍳" },
-    { id: "vendor-flow/Menu", label: "Menu & Items", icon: "🍲" },
-    { id: "vendor-flow/VendorSettlements", label: "Daily Payouts", icon: "💰" },
-    { id: "vendor-flow/Store", label: "Store Settings", icon: "🏪" },
-    { id: "vendor-flow/Notifications", label: "Kitchen Alerts", icon: "🔔" },
-    { id: "vendor-flow/MoreProfile", label: "Profile & Bank", icon: "💼" },
-    { id: "vendor-flow/OnboardingAuth", label: "Auth / Onboard", icon: "🔑" },
-    { id: "vendor-flow/PendingApprovalPage", label: "Pending Review", icon: "⏳" },
-    { id: "vendor-flow/AccountIssuePage", label: "Account Action", icon: "⚠️" },
-    { id: "vendor-flow/Verification", label: "Verification", icon: "🛡️" },
-  ];
+  useEffect(() => {
+    const unsub = takeOnTimeStore.subscribe(() => {
+      setCurrentVendor(takeOnTimeStore.getCurrentVendor());
+      setVendors(takeOnTimeStore.getVendors());
+    });
+    return unsub;
+  }, []);
+
+  const vendorFeatures = useMemo(() => {
+    return getVendorFeatures(currentVendor?.businessType || "all");
+  }, [currentVendor?.businessType]);
+
+  // Vendor views dynamically filtered based on businessType:
+  // - If hotel: only table reservations, available meals/menu, KDS, orders, staff RBAC, profile & sub-staff (no meal plans)
+  // - If mess: table/seat reservations (for passes or single regular), meal pass/plans, tiffin pickup, KDS, staff RBAC, profile & sub-staff
+  // - If all: all features
+  const vendorViews = useMemo(() => {
+    const views = [
+      { id: "vendor-flow/VendorDashboard", label: "Control Room", icon: "📊" },
+      { id: "vendor-flow/Orders", label: "Kitchen Orders", icon: "🧾" },
+      {
+        id: "vendor-flow/VendorTableManagement",
+        label: currentVendor.businessType === "hotel"
+          ? "Table Reservations"
+          : currentVendor.businessType === "mess"
+          ? "Mess Seats & Tables"
+          : "Tables & Branches",
+        icon: "🪑",
+      },
+      { id: "vendor-flow/StaffManagement", label: "Staff & RBAC", icon: "👥" },
+    ];
+
+    if (vendorFeatures.hasMealPasses) {
+      views.push({
+        id: "vendor-flow/VendorMealPlans",
+        label: currentVendor.businessType === "mess" ? "Mess Passes & Thalis" : "Meal Plans / Pass",
+        icon: "🎫",
+      });
+    }
+
+    views.push(
+      { id: "vendor-flow/KitchenDisplaySystem", label: "KDS Station", icon: "🍳" },
+      {
+        id: "vendor-flow/Menu",
+        label: currentVendor.businessType === "hotel"
+          ? "Available Meals & Menu"
+          : currentVendor.businessType === "mess"
+          ? "Daily Thalis & Tiffin"
+          : "Menu & Items",
+        icon: "🍲",
+      },
+      { id: "vendor-flow/VendorSettlements", label: "Daily Payouts", icon: "💰" },
+      { id: "vendor-flow/Store", label: "Store Settings", icon: "🏪" },
+      { id: "vendor-flow/Notifications", label: "Kitchen Alerts", icon: "🔔" },
+      { id: "vendor-flow/MoreProfile", label: "Profile & Sub-Staff", icon: "💼" },
+      { id: "vendor-flow/OnboardingAuth", label: "Auth / Onboard", icon: "🔑" },
+      { id: "vendor-flow/PendingApprovalPage", label: "Pending Review", icon: "⏳" },
+      { id: "vendor-flow/AccountIssuePage", label: "Account Action", icon: "⚠️" },
+      { id: "vendor-flow/Verification", label: "Verification", icon: "🛡️" },
+    );
+
+    return views;
+  }, [currentVendor.businessType, vendorFeatures.hasMealPasses]);
 
   const customerViews = [
     { id: "customer-flow/CustomerAuth", label: "Sign In / Pass", icon: "🔑" },
@@ -147,7 +196,7 @@ function TakeOnTimeEcosystemShell({
     { id: "customer-flow/OrderFeedback", label: "Food Review & Help", icon: "⭐" },
     { id: "customer-flow/CustomerNotifications", label: "Order Alerts", icon: "🔔" },
     { id: "customer-flow/CustomerOrders", label: "Past Orders", icon: "📜" },
-    { id: "customer-flow/CustomerProfile", label: "Campus Pass & Perks", icon: "👤" },
+    { id: "customer-flow/CustomerProfile", label: "Profile & Campus Pass", icon: "👤" },
   ];
 
   const adminViews = [
@@ -176,13 +225,17 @@ function TakeOnTimeEcosystemShell({
       ? customerViews
       : adminViews;
 
+  const handleBusinessTypeChange = (type: VendorBusinessType) => {
+    takeOnTimeStore.setVendorBusinessType(currentVendor.id, type);
+  };
+
   return (
     <div className="min-h-screen bg-[#eadfd3] flex flex-col font-sans">
       {/* Platform Ecosystem Top Bar */}
       <header className="sticky top-0 z-50 bg-[#1d2420] text-[#fff8ef] shadow-lg border-b border-[#344238]">
         {/* Tier 1: Ecosystem Role Switcher */}
         <div className="border-b border-[#2d3a31] bg-[#161c19] px-4 py-2">
-          <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ed6c2d] text-xs font-black text-white shadow-sm">
                 to
@@ -190,8 +243,64 @@ function TakeOnTimeEcosystemShell({
               <div>
                 <span className="font-black text-sm tracking-tight text-[#f5bd72]">TakeOnTime</span>
                 <span className="text-[11px] text-[#a4baa9] ml-1.5 font-medium hidden sm:inline">
-                  Campus Pre-Order Ecosystem
+                  Campus &amp; Hotel Pre-Order Ecosystem
                 </span>
+              </div>
+            </div>
+
+            {/* Vendor Business Type Switcher & Active Vendor Selector */}
+            <div className="flex items-center flex-wrap gap-2">
+              {/* Vendor Switcher dropdown */}
+              <div className="flex items-center gap-1.5 bg-[#222b25] px-2.5 py-1 rounded-lg border border-[#334237]">
+                <span className="text-[11px] text-[#9cb2a3] font-medium hidden lg:inline">Active Vendor:</span>
+                <select
+                  value={currentVendor.id}
+                  onChange={(e) => takeOnTimeStore.setCurrentVendorId(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-[#fce8cc] outline-none cursor-pointer"
+                >
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id} className="bg-[#1e2521] text-white">
+                      {v.name} ({v.businessType.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Business Type Mode Switcher */}
+              <div className="flex items-center gap-1 bg-[#151c17] p-1 rounded-xl border border-[#2c3a30]">
+                <span className="text-[10px] uppercase font-bold text-[#a0b5a6] px-1.5 hidden md:inline">
+                  Mode:
+                </span>
+                {(["hotel", "mess", "all"] as VendorBusinessType[]).map((type) => {
+                  const isCurrent = currentVendor.businessType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleBusinessTypeChange(type)}
+                      title={
+                        type === "hotel"
+                          ? "Hotel: Table reservations & available meals only"
+                          : type === "mess"
+                          ? "Mess: Table/seat reservations (for passes or regular), meal pass & tiffin pickup"
+                          : "All: Full features suite"
+                      }
+                      className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        isCurrent
+                          ? type === "hotel"
+                            ? "bg-[#7c3aed] text-white shadow-sm ring-1 ring-[#9353fa]"
+                            : type === "mess"
+                            ? "bg-[#16a34a] text-white shadow-sm ring-1 ring-[#22c55e]"
+                            : "bg-[#ed6c2d] text-white shadow-sm ring-1 ring-[#f97316]"
+                          : "text-[#8ba391] hover:text-white hover:bg-[#202923]"
+                      }`}
+                    >
+                      {type === "hotel" && <span>🏨 Hotel</span>}
+                      {type === "mess" && <span>🍱 Mess</span>}
+                      {type === "all" && <span>⭐ All</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -248,12 +357,36 @@ function TakeOnTimeEcosystemShell({
           </div>
         </div>
 
+        {/* Feature Condition Info Banner (Contextual) */}
+        <div className="bg-[#121714] border-b border-[#242f27] px-4 py-1.5 text-[11px] text-[#9cb2a3]">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white">
+                {currentVendor.businessType === "hotel" && "🏨 Hotel Mode:"}
+                {currentVendor.businessType === "mess" && "🍱 Mess Mode:"}
+                {currentVendor.businessType === "all" && "⭐ All Features Mode:"}
+              </span>
+              <span className="text-[#cbd8cd]">
+                {currentVendor.businessType === "hotel" &&
+                  "Table reservations & available meals only. Meal passes and tiffin pickups are disabled."}
+                {currentVendor.businessType === "mess" &&
+                  "Table/seat reservations (for passes or single regular), weekly/monthly meal pass & tiffin pickup enabled."}
+                {currentVendor.businessType === "all" &&
+                  "All capabilities enabled: table reservations, daily meals, meal passes, and tiffin pickup."}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#f5bd72] shrink-0 hidden sm:inline">
+              Features synced across Vendor, Customer &amp; Admin
+            </span>
+          </div>
+        </div>
+
         {/* Tier 2: Sub-views Navigation for Active App */}
-        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
-          <div className="text-[11px] font-bold text-[#8ba391] uppercase tracking-wider hidden md:block">
-            {appRole === "vendor" && "Vendor Storefront & Kitchen"}
-            {appRole === "customer" && "Campus Order-Ahead & Pickup"}
-            {appRole === "admin" && "Compliance & Realtime Feeds"}
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+          <div className="text-[11px] font-bold text-[#8ba391] uppercase tracking-wider hidden md:block shrink-0">
+            {appRole === "vendor" && `${currentVendor.name} · ${currentVendor.businessType.toUpperCase()}`}
+            {appRole === "customer" && "Customer App · Campus & Hotel Dining"}
+            {appRole === "admin" && "Operations HQ · Audit & Compliance"}
           </div>
 
           <nav className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none w-full md:w-auto" aria-label="Module Views">

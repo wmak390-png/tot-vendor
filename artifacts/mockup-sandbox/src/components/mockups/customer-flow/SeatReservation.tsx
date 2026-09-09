@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   AlertCircle,
   Armchair,
@@ -17,8 +17,10 @@ import {
   MapPin,
   Maximize2,
   Navigation,
+  Package,
   QrCode,
   Sparkles,
+  Ticket,
   Timer,
   TrendingUp,
   User,
@@ -32,10 +34,12 @@ import {
 } from "lucide-react";
 import {
   takeOnTimeStore,
+  getVendorFeatures,
   type Branch,
   type TableItem,
   type TableReservation,
   type TableZone,
+  type Vendor,
   type VerticalType,
 } from "@/lib/takeontime-store";
 
@@ -88,12 +92,16 @@ export function SeatReservation({
 }: {
   onNavigate?: (tab: string) => void;
 }) {
+  const [currentVendor, setCurrentVendor] = useState<Vendor>(() => takeOnTimeStore.getCurrentVendor());
   const [branches, setBranches] = useState<Branch[]>(() => takeOnTimeStore.getBranches());
   const [selectedBranchId, setSelectedBranchId] = useState<string>(() => takeOnTimeStore.getActiveBranchId());
   const [verticalFilter, setVerticalFilter] = useState<"all" | VerticalType>("all");
-  const [activeTab, setActiveTab] = useState<"book" | "my-pass">("my-pass");
+  const [activeTab, setActiveTab] = useState<"book" | "my-pass">("book");
 
   // Selection state
+  const [reservationType, setReservationType] = useState<"seat" | "tiffin">("seat");
+  const [customerCategory, setCustomerCategory] = useState<"pass" | "regular">("regular");
+  const [tiffinDabbaType, setTiffinDabbaType] = useState<"mess_dabba" | "bring_own">("mess_dabba");
   const [partySize, setPartySize] = useState<number>(2);
   const [selectedZone, setSelectedZone] = useState<TableZone>("AC Main Hall");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("12:45 PM – 01:30 PM");
@@ -110,12 +118,17 @@ export function SeatReservation({
 
   useEffect(() => {
     const unsub = takeOnTimeStore.subscribe(() => {
+      setCurrentVendor(takeOnTimeStore.getCurrentVendor());
       setBranches(takeOnTimeStore.getBranches());
       setTables(takeOnTimeStore.getTables(selectedBranchId));
       setUserReservation(takeOnTimeStore.getUserActiveTableReservation());
     });
     return unsub;
   }, [selectedBranchId]);
+
+  const vendorFeatures = useMemo(() => {
+    return getVendorFeatures(currentVendor.businessType);
+  }, [currentVendor.businessType]);
 
   const currentBranch = branches.find((b) => b.id === selectedBranchId) || branches[0];
 
@@ -142,27 +155,48 @@ export function SeatReservation({
       return;
     }
 
+    let linkedText = "";
+    if (currentVendor.businessType === "hotel") {
+      linkedText = withFoodOrder ? "Auto-linked with Hotel Chef Available Meals" : "Table Seating Only";
+    } else if (currentVendor.businessType === "mess") {
+      if (reservationType === "tiffin") {
+        linkedText = `Tiffin Pickup (${customerCategory === "pass" ? "Meal Pass Holder" : "Single Regular"}) · ${
+          tiffinDabbaType === "mess_dabba" ? "Insulated Mess Dabba" : "Personal Dabba"
+        }`;
+      } else {
+        linkedText = `Mess Seat (${customerCategory === "pass" ? "Monthly Pass" : "Single Regular"}) ${
+          withFoodOrder ? "· Hot Thali Pre-ordered" : ""
+        }`;
+      }
+    } else {
+      linkedText = withFoodOrder ? "Auto-linked with Meal Order / Pass" : undefined || "";
+    }
+
     const newRes = takeOnTimeStore.createSeatReservation({
       branchId: currentBranch.id,
       branchName: currentBranch.name,
       facilityName: currentBranch.campusOrFacility,
       vertical: currentBranch.vertical,
       tableId: tableToBook.id,
-      tableNumber: tableToBook.tableNumber,
-      zone: selectedZone,
+      tableNumber: reservationType === "tiffin" ? `Tiffin-Bay-${tableToBook.tableNumber.replace("T-", "")}` : tableToBook.tableNumber,
+      zone: reservationType === "tiffin" ? "Express Counter Stools" : selectedZone,
       customerName: "Rahul Sharma",
       phone: "+91 98450 12345",
-      partySize,
+      partySize: reservationType === "tiffin" ? 1 : partySize,
       dateStr: "2026-09-07",
       timeSlot: selectedTimeSlot,
       rushLevelAtBooking: currentBranch.currentRush,
-      linkedOrderOrPlan: withFoodOrder ? "Auto-linked with Monthly Meal Pass Thali" : undefined,
+      linkedOrderOrPlan: linkedText || undefined,
       notes: notes || undefined,
     });
 
     setUserReservation(newRes);
     setActiveTab("my-pass");
-    setToast(`Seat confirmed at Table ${tableToBook.tableNumber}! OTP: ${newRes.otp}`);
+    setToast(
+      reservationType === "tiffin"
+        ? `Tiffin pickup slot confirmed! Dabba OTP: ${newRes.otp}`
+        : `Seat confirmed at Table ${tableToBook.tableNumber}! OTP: ${newRes.otp}`
+    );
     setTimeout(() => setToast(null), 4000);
   };
 
@@ -501,6 +535,149 @@ export function SeatReservation({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Left Column: Form & Zone Preferences */}
             <div className="lg:col-span-7 space-y-4">
+              {/* Vendor Feature Condition Notice Banner */}
+              <div
+                className={`rounded-2xl p-4 border ${
+                  currentVendor.businessType === "hotel"
+                    ? "bg-[#faf5ff] border-[#e9d5ff] text-[#581c87]"
+                    : currentVendor.businessType === "mess"
+                    ? "bg-[#ecfdf5] border-[#bbf7d0] text-[#14532d]"
+                    : "bg-[#fff7ed] border-[#fed7aa] text-[#9a3412]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">
+                        {currentVendor.businessType === "hotel"
+                          ? "🏨"
+                          : currentVendor.businessType === "mess"
+                          ? "🍱"
+                          : "⭐"}
+                      </span>
+                      <h2 className="text-sm font-black">
+                        {currentVendor.name} ·{" "}
+                        {currentVendor.businessType === "hotel"
+                          ? "Hotel Table Reservations & Available Meals"
+                          : currentVendor.businessType === "mess"
+                          ? "Mess Seats & Tiffin Pickup System"
+                          : "Full Facility Hub (Hotel + Mess)"}
+                      </h2>
+                    </div>
+                    <p className="text-xs mt-1 opacity-90 leading-relaxed">
+                      {currentVendor.businessType === "hotel" &&
+                        "Active features: Reserved dining tables, private family/team booths, and available chef special meals. (Passes & tiffin pickup disabled for hotel vendor)."}
+                      {currentVendor.businessType === "mess" &&
+                        "Active features: Table/seat reservations (for passes, or single regular), weekly/monthly pass redemption, and tiffin pickup (for passes, or single regular)."}
+                      {currentVendor.businessType === "all" &&
+                        "Active features: All options available (Hotel tables, mess seating, meal passes, and insulated tiffin pickup)."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Conditional Mess Controls (For Mess & All) */}
+                {(currentVendor.businessType === "mess" || currentVendor.businessType === "all") && (
+                  <div className="mt-3 pt-3 border-t border-black/10 space-y-2.5">
+                    {/* Option 1: Reservation Mode (Seat vs Tiffin) */}
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider block mb-1">
+                        Service Type
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReservationType("seat")}
+                          className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            reservationType === "seat"
+                              ? "bg-white text-[#15803d] border-[#16a34a] shadow-xs"
+                              : "bg-black/5 text-[#4b5563] border-transparent hover:bg-black/10"
+                          }`}
+                        >
+                          <Armchair className="h-3.5 w-3.5" />
+                          <span>Dine-in Mess Seat</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReservationType("tiffin")}
+                          className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            reservationType === "tiffin"
+                              ? "bg-white text-[#ea580c] border-[#ea580c] shadow-xs"
+                              : "bg-black/5 text-[#4b5563] border-transparent hover:bg-black/10"
+                          }`}
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                          <span>Tiffin Dabba Pickup</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Option 2: Customer Category (Pass vs Regular) */}
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider block mb-1">
+                        Diner Status (For Passes or Single Regular)
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCustomerCategory("pass")}
+                          className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            customerCategory === "pass"
+                              ? "bg-white text-[#1d4ed8] border-[#2563eb] shadow-xs"
+                              : "bg-black/5 text-[#4b5563] border-transparent hover:bg-black/10"
+                          }`}
+                        >
+                          <Ticket className="h-3.5 w-3.5" />
+                          <span>Meal Pass Holder</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomerCategory("regular")}
+                          className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            customerCategory === "regular"
+                              ? "bg-white text-[#1f2937] border-[#374151] shadow-xs"
+                              : "bg-black/5 text-[#4b5563] border-transparent hover:bg-black/10"
+                          }`}
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          <span>Single Regular Diner</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* If Tiffin Mode is active, show container choice */}
+                    {reservationType === "tiffin" && (
+                      <div className="p-2.5 rounded-xl bg-white/80 border border-[#fed7aa] space-y-1.5 text-xs">
+                        <span className="font-bold text-[#9a3412] flex items-center gap-1">
+                          <Package className="h-3.5 w-3.5" /> Tiffin Dabba Packaging:
+                        </span>
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="tiffin_choice"
+                              checked={tiffinDabbaType === "mess_dabba"}
+                              onChange={() => setTiffinDabbaType("mess_dabba")}
+                              className="accent-[#ea580c]"
+                            />
+                            <span>Mess Insulated Dabba (Return next day)</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="tiffin_choice"
+                              checked={tiffinDabbaType === "bring_own"}
+                              onChange={() => setTiffinDabbaType("bring_own")}
+                              className="accent-[#ea580c]"
+                            />
+                            <span>Bring Personal Stainless Steel Dabba</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Step 1: Party Size */}
               <div className="rounded-2xl bg-white p-4 border border-[#e4ded5] shadow-xs">
                 <label className="text-xs font-extrabold uppercase tracking-wider text-[#6d6356] flex items-center justify-between mb-2.5">
