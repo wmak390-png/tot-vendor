@@ -1,0 +1,83 @@
+import 'package:flutter/material.dart';
+
+import 'features/dashboard/screens/vendor_dashboard_screen.dart';
+import 'features/menu/screens/menu_screen.dart';
+import 'features/orders/screens/orders_screen.dart';
+import 'features/profile/screens/profile_screen.dart';
+import 'features/store/screens/store_screen.dart';
+
+class VendorApp extends StatelessWidget {
+  const VendorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'TakeOnTime Vendor',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFF6B35),
+          brightness: Brightness.light,
+        ),
+      ),
+      home: const VendorShell(),
+    );
+  }
+}
+
+class VendorShell extends StatefulWidget {
+  const VendorShell({super.key});
+
+  @override
+  State<VendorShell> createState() => _VendorShellState();
+}
+
+class _VendorShellState extends State<VendorShell> {
+  int _currentIndex = 0;
+
+  static const List<IconData> _icons = [
+    Icons.home_outlined,
+    Icons.receipt_long_outlined,
+    Icons.storefront_outlined,
+    Icons.restaurant_menu_outlined,
+    Icons.person_outline,
+  ];
+
+  static const List<String> _labels = [
+    'Dashboard',
+    'Orders',
+    'Store',
+    'Menu',
+    'Profile',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final screens = [
+      const VendorDashboardScreen(),
+      const OrdersScreen(),
+      const StoreScreen(),
+      const MenuScreen(),
+      const ProfileScreen(),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: List.generate(
+          _icons.length,
+          (index) => NavigationDestination(
+            icon: Icon(_icons[index]),
+            label: _labels[index],
+          ),
+        ),
+      ),
+    );
+  }
+}

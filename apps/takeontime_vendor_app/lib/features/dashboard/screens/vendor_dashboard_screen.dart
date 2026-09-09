@@ -1,0 +1,557 @@
+import 'package:flutter/material.dart';
+
+class VendorDashboardScreen extends StatelessWidget {
+  const VendorDashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final recentOrders = [
+      const _OrderCard(
+        orderId: '#TOT-4814',
+        customer: 'Aarav Sharma',
+        total: '₹482',
+        status: 'Preparing',
+      ),
+      const SizedBox(height: 12),
+      const _OrderCard(
+        orderId: '#TOT-4811',
+        customer: 'Meera Iyer',
+        total: '₹349',
+        status: 'Ready',
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('TakeOnTime Vendor'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _HeroCard(
+                title: 'Store status',
+                value: 'Open · Accepting orders',
+                subtitle: 'Last updated 3 mins ago',
+              ),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Today'),
+              const _MetricRow(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Quick actions'),
+              const _QuickActionGrid(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Performance'),
+              const _PerformanceCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Operations insight'),
+              const _InsightCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Staffing & timing'),
+              const _StaffingCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Inventory health'),
+              const _InventoryCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Cashflow'),
+              const _CashflowCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Kitchen checklist'),
+              const _KitchenChecklistCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Recent orders'),
+              ...recentOrders,
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Top sellers'),
+              const _TopSellerCard(),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Delivery optimization'),
+              const _DeliveryOptimizationCard(),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {},
+        icon: const Icon(Icons.add_business),
+        label: const Text('New item'),
+      ),
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.title, required this.value, required this.subtitle});
+
+  final String title;
+  final String value;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 12),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  const _MetricRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(child: _StatTile(label: 'Orders', value: '24')),
+        SizedBox(width: 12),
+        Expanded(child: _StatTile(label: 'Revenue', value: '₹3.8k')),
+        SizedBox(width: 12),
+        Expanded(child: _StatTile(label: 'Avg. prep', value: '18m')),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionGrid extends StatelessWidget {
+  const _QuickActionGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = [
+      ('Today\'s Orders', Icons.receipt_long_outlined),
+      ('Manage Menu', Icons.restaurant_menu_outlined),
+      ('Add Item', Icons.add_circle_outline),
+      ('Profile', Icons.person_outline),
+    ];
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.4,
+      children: actions.map((entry) {
+        final label = entry.$1;
+        final icon = entry.$2;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 28),
+                const SizedBox(height: 12),
+                Text(label, style: Theme.of(context).textTheme.titleSmall),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 6),
+          Text(value, style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerformanceCard extends StatelessWidget {
+  const _PerformanceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This week', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Expanded(child: _MetricChip(label: 'Sales', value: '₹12.4k')),
+                SizedBox(width: 8),
+                Expanded(child: _MetricChip(label: 'Repeat', value: '31%')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Peak demand', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('12:30 PM–2:00 PM is trending 18% higher than usual.'),
+            SizedBox(height: 12),
+            Text('Suggested action: prep 10 extra signature bowls and set one pickup lane.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffingCard extends StatelessWidget {
+  const _StaffingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Coverage plan', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('2 kitchen staff on station · 1 expeditor at pickup counter.'),
+            SizedBox(height: 8),
+            Text('Pickup lane status: stable, 4-minute wait target.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InventoryCard extends StatelessWidget {
+  const _InventoryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Inventory watch', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('Rice, tofu, and greens are at 92% of target stock.'),
+            SizedBox(height: 8),
+            Text('Reorder recommended for lemon dressing and packet wraps.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CashflowCard extends StatelessWidget {
+  const _CashflowCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Cashflow', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('Settlement due in 2 days: ₹12,480 from recent orders.'),
+            SizedBox(height: 8),
+            Text('Faster payout route is enabled for preferred vendors.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KitchenChecklistCard extends StatelessWidget {
+  const _KitchenChecklistCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Prep checklist', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('Bean soak complete • Grill calibrated • Compote batch ready'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopSellerCard extends StatelessWidget {
+  const _TopSellerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Top seller', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('Signature Bowl · 38 orders today · ₹7,220 revenue.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeliveryOptimizationCard extends StatelessWidget {
+  const _DeliveryOptimizationCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Delivery plan', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 8),
+            Text('Add a second rider from 12:30 PM to 2:00 PM to reduce queue overflow.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  const _OrderCard({
+    required this.orderId,
+    required this.customer,
+    required this.total,
+    required this.status,
+  });
+
+  final String orderId;
+  final String customer;
+  final String total;
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = switch (status) {
+      'Ready' => Colors.green,
+      'Confirmed' || 'Preparing' => Colors.orange,
+      _ => Colors.grey,
+    };
+
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => OrderDetailScreen(
+              orderId: orderId,
+              customer: customer,
+              total: total,
+              status: status,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        child: ListTile(
+          title: Text(orderId),
+          subtitle: Text(customer),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(total, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class OrderDetailScreen extends StatelessWidget {
+  const OrderDetailScreen({
+    super.key,
+    required this.orderId,
+    required this.customer,
+    required this.total,
+    required this.status,
+  });
+
+  final String orderId;
+  final String customer;
+  final String total;
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(orderId)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(customer, style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 8),
+                      Text('Status: $status'),
+                      const SizedBox(height: 12),
+                      Text('Total: $total'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Timeline', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              const _TimelineRow(label: 'Order placed', time: '09:35 AM'),
+              const _TimelineRow(label: 'Kitchen confirmed', time: '09:50 AM'),
+              const _TimelineRow(label: 'Pickup ready', time: '10:10 AM'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({required this.label, required this.time});
+
+  final String label;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.check_circle_outline),
+        title: Text(label),
+        trailing: Text(time),
+      ),
+    );
+  }
+}
