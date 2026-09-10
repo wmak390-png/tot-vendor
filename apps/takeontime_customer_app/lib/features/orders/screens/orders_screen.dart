@@ -1,25 +1,66 @@
 import 'package:flutter/material.dart';
 
-class OrdersScreen extends StatelessWidget {
+import '../../../core/supabase/supabase_bootstrap.dart';
+import '../data/customer_orders_repository.dart';
+
+class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final orders = [
-      OrderEntry('Little Fern Kitchen', 'Order #1041', 'In progress', 'Ready by 12:40 PM'),
-      OrderEntry('Bamboo Bowl', 'Order #1038', 'Delivered', 'Tuesday, 1:15 PM'),
-      OrderEntry('Saffron Bites', 'Order #1032', 'Reviewing', 'Pickup confirmed'),
-    ];
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
 
+class _OrdersScreenState extends State<OrdersScreen> {
+  final _repository = const CustomerOrdersRepository();
+  var _loading = true;
+  List<OrderEntry> _orders = const [
+    OrderEntry('Little Fern Kitchen', 'Order #1041', 'In progress', 'Ready by 12:40 PM'),
+    OrderEntry('Bamboo Bowl', 'Order #1038', 'Delivered', 'Tuesday, 1:15 PM'),
+    OrderEntry('Saffron Bites', 'Order #1032', 'Reviewing', 'Pickup confirmed'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    final customerId = SupabaseBootstrap.client?.auth.currentUser?.id;
+    if (customerId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final orders = await _repository.fetchOrders(customerId);
+      if (!mounted) return;
+      setState(() {
+        _orders = orders.map((order) => OrderEntry(
+          'TakeOnTime vendor',
+          'Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length)}',
+          order.status,
+          order.createdAt?.toLocal().toString() ?? 'Recently placed',
+        )).toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Orders')),
       body: SafeArea(
         child: ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: orders.length,
+          itemCount: _orders.length + (_loading ? 1 : 0),
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final order = orders[index];
+            if (_loading && index == 0) return const LinearProgressIndicator();
+            final order = _orders[index - (_loading ? 1 : 0)];
             return Card(
               child: ListTile(
                 title: Text(order.vendor),

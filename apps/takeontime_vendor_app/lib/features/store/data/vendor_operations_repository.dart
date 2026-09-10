@@ -1,7 +1,148 @@
 import '../../../core/supabase/supabase_bootstrap.dart';
 
+class VendorMenuCategory {
+  const VendorMenuCategory({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory VendorMenuCategory.fromJson(Map<String, dynamic> json) {
+    return VendorMenuCategory(id: json['id'] as String, name: json['name'] as String);
+  }
+}
+
+class VendorMenuItem {
+  const VendorMenuItem({required this.id, required this.categoryId, required this.name, required this.description, required this.price, required this.prepMinutes, required this.isAvailable});
+
+  final String id;
+  final String categoryId;
+  final String name;
+  final String description;
+  final double price;
+  final int prepMinutes;
+  final bool isAvailable;
+
+  factory VendorMenuItem.fromJson(Map<String, dynamic> json) {
+    return VendorMenuItem(
+      id: json['id'] as String,
+      categoryId: json['category_id'] as String,
+      name: json['name'] as String,
+      description: (json['description'] as String?) ?? '',
+      price: ((json['price'] as num?)?.toDouble() ?? ((json['price_paise'] as num?)?.toDouble() ?? 0) / 100),
+      prepMinutes: (json['prep_minutes'] as num?)?.toInt() ?? 10,
+      isAvailable: json['is_available'] as bool? ?? true,
+    );
+  }
+
+  VendorMenuItem copyWith({bool? isAvailable}) => VendorMenuItem(
+        id: id,
+        categoryId: categoryId,
+        name: name,
+        description: description,
+        price: price,
+        prepMinutes: prepMinutes,
+        isAvailable: isAvailable ?? this.isAvailable,
+      );
+}
+
+class VendorMenuSnapshot {
+  const VendorMenuSnapshot({required this.categories, required this.items});
+
+  final List<VendorMenuCategory> categories;
+  final List<VendorMenuItem> items;
+}
+
+class VendorOrder {
+  const VendorOrder({required this.id, required this.customer, required this.item, required this.quantity, required this.amountPaise, required this.status, required this.time, required this.pickup, this.note});
+
+  final String id;
+  final String customer;
+  final String item;
+  final int quantity;
+  final int amountPaise;
+  final String status;
+  final String time;
+  final String pickup;
+  final String? note;
+
+  factory VendorOrder.fromJson(Map<String, dynamic> json) => VendorOrder(
+        id: json['id'] as String,
+        customer: json['customer'] as String? ?? 'Customer',
+        item: json['item'] as String? ?? 'Order items',
+        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+        amountPaise: (json['amount_paise'] as num?)?.toInt() ?? 0,
+        status: json['status'] as String? ?? 'New',
+        time: json['time'] as String? ?? 'Recently',
+        pickup: json['pickup'] as String? ?? 'Pickup time not set',
+        note: json['note'] as String?,
+      );
+
+  VendorOrder copyWith({String? status}) => VendorOrder(id: id, customer: customer, item: item, quantity: quantity, amountPaise: amountPaise, status: status ?? this.status, time: time, pickup: pickup, note: note);
+}
+
 class VendorOperationsRepository {
   const VendorOperationsRepository();
+
+  Future<List<VendorOrder>> fetchOrders(String vendorId) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final rows = await client.from('vendor_orders').select().eq('vendor_id', vendorId).order('updated_at', ascending: false);
+    return rows.map((row) => VendorOrder.fromJson(row)).toList();
+  }
+
+  Future<VendorOrder> updateOrderStatus({required String vendorId, required VendorOrder order, required String status}) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final row = await client.from('vendor_orders').update({'status': status}).eq('id', order.id).eq('vendor_id', vendorId).select().single();
+    return VendorOrder.fromJson(row);
+  }
+
+  Future<VendorMenuSnapshot> fetchMenu(String vendorId) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final categories = await client.from('vendor_categories').select().eq('vendor_id', vendorId).order('sort_order');
+    final items = await client.from('vendor_items').select().eq('vendor_id', vendorId);
+    return VendorMenuSnapshot(
+      categories: categories.map((row) => VendorMenuCategory.fromJson(row)).toList(),
+      items: items.map((row) => VendorMenuItem.fromJson(row)).toList(),
+    );
+  }
+
+  Future<VendorMenuCategory> createCategory({required String vendorId, required String name}) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final row = await client.from('vendor_categories').insert({'id': 'cat-${DateTime.now().millisecondsSinceEpoch}', 'vendor_id': vendorId, 'name': name, 'accent': 'sparkles', 'sort_order': 99, 'is_active': true}).select().single();
+    return VendorMenuCategory.fromJson(row);
+  }
+
+  Future<VendorMenuItem> createItem({required String vendorId, required String categoryId, required String name, required String description, required double price, required int prepMinutes, required bool isAvailable}) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final row = await client.from('vendor_items').insert({
+      'id': 'item-${DateTime.now().millisecondsSinceEpoch}',
+      'vendor_id': vendorId,
+      'category_id': categoryId,
+      'name': name,
+      'description': description,
+      'price_paise': (price * 100).round(),
+      'prep_minutes': prepMinutes,
+      'is_available': isAvailable,
+    }).select().single();
+    return VendorMenuItem.fromJson(row);
+  }
+
+  Future<VendorMenuItem> updateItem({required String vendorId, required VendorMenuItem item, String? name, String? description, double? price, int? prepMinutes, bool? isAvailable}) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final row = await client.from('vendor_items').update({
+      'name': name ?? item.name,
+      'description': description ?? item.description,
+      'price_paise': ((price ?? item.price) * 100).round(),
+      'prep_minutes': prepMinutes ?? item.prepMinutes,
+      'is_available': isAvailable ?? item.isAvailable,
+    }).eq('id', item.id).eq('vendor_id', vendorId).select().single();
+    return VendorMenuItem.fromJson(row);
+  }
 
   Future<Map<String, dynamic>?> fetchSnapshot(String vendorId) async {
     final client = SupabaseBootstrap.client;
@@ -12,9 +153,9 @@ class VendorOperationsRepository {
     final vendor = await client.from('vendors').select().eq('id', vendorId).maybeSingle();
     if (vendor == null) return null;
 
-    final categories = await client.from('menu_categories').select().eq('vendor_id', vendorId).order('sort_order');
-    final items = await client.from('menu_items').select().eq('vendor_id', vendorId).order('sort_order');
-    final orders = await client.from('orders').select().eq('vendor_id', vendorId).order('created_at', ascending: false);
+    final categories = await client.from('vendor_categories').select().eq('vendor_id', vendorId).order('sort_order');
+    final items = await client.from('vendor_items').select().eq('vendor_id', vendorId);
+    final orders = await client.from('vendor_orders').select().eq('vendor_id', vendorId).order('updated_at', ascending: false);
 
     return {
       'vendor': vendor,

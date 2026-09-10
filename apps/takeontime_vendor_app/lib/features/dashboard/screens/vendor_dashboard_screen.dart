@@ -1,7 +1,50 @@
 import 'package:flutter/material.dart';
 
-class VendorDashboardScreen extends StatelessWidget {
+import '../../store/data/vendor_operations_repository.dart';
+
+const _dashboardVendorId = 'demo-vendor-1';
+
+class VendorDashboardScreen extends StatefulWidget {
   const VendorDashboardScreen({super.key});
+
+  @override
+  State<VendorDashboardScreen> createState() => _VendorDashboardScreenState();
+}
+
+class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
+  final _repository = const VendorOperationsRepository();
+  bool _acceptingOrders = true;
+  DateTime? _breakUntil;
+  int _orderCount = 24;
+  double _revenue = 3800;
+  bool _loading = true;
+
+  bool get _onBreak => _breakUntil != null && _breakUntil!.isAfter(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSnapshot();
+  }
+
+  Future<void> _loadSnapshot() async {
+    try {
+      final snapshot = await _repository.fetchSnapshot(_dashboardVendorId);
+      final vendor = snapshot?['vendor'] as Map<String, dynamic>?;
+      final orders = (snapshot?['orders'] as List<dynamic>?) ?? const [];
+      if (mounted) {
+        setState(() {
+          _acceptingOrders = vendor?['accepting_orders'] as bool? ?? _acceptingOrders;
+          _breakUntil = DateTime.tryParse(vendor?['break_until'] as String? ?? '')?.toLocal();
+          _orderCount = orders.length;
+          _revenue = orders.fold<double>(0, (total, order) => total + (((order as Map<String, dynamic>)['amount_paise'] as num?)?.toDouble() ?? 0) / 100);
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +64,7 @@ class VendorDashboardScreen extends StatelessWidget {
       ),
     ];
 
+    final status = _onBreak ? 'On break' : _acceptingOrders ? 'Open · Accepting orders' : 'Closed · Orders paused';
     return Scaffold(
       appBar: AppBar(
         title: const Text('TakeOnTime Vendor'),
@@ -35,12 +79,12 @@ class VendorDashboardScreen extends StatelessWidget {
             children: [
               _HeroCard(
                 title: 'Store status',
-                value: 'Open · Accepting orders',
-                subtitle: 'Last updated 3 mins ago',
+                value: status,
+                subtitle: _loading ? 'Loading live store status…' : 'Live operational status',
               ),
               const SizedBox(height: 20),
               _SectionHeader(title: 'Today'),
-              const _MetricRow(),
+              _MetricRow(orderCount: _orderCount, revenue: _revenue),
               const SizedBox(height: 20),
               _SectionHeader(title: 'Quick actions'),
               const _QuickActionGrid(),
@@ -131,15 +175,18 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _MetricRow extends StatelessWidget {
-  const _MetricRow();
+  const _MetricRow({required this.orderCount, required this.revenue});
+
+  final int orderCount;
+  final double revenue;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        Expanded(child: _StatTile(label: 'Orders', value: '24')),
+        Expanded(child: _StatTile(label: 'Orders', value: '$orderCount')),
         SizedBox(width: 12),
-        Expanded(child: _StatTile(label: 'Revenue', value: '₹3.8k')),
+        Expanded(child: _StatTile(label: 'Revenue', value: '₹${revenue.toStringAsFixed(0)}')),
         SizedBox(width: 12),
         Expanded(child: _StatTile(label: 'Avg. prep', value: '18m')),
       ],

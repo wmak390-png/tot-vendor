@@ -1,37 +1,71 @@
 import 'package:flutter/material.dart';
 
+import '../data/discovery_repository.dart';
 import 'vendor_detail_screen.dart';
 
-class DiscoverScreen extends StatelessWidget {
+class _DiscoveryVendor {
+  const _DiscoveryVendor({required this.id, required this.name, required this.cuisines, required this.acceptingOrders, this.breakUntil});
+
+  final String id;
+  final String name;
+  final String cuisines;
+  final bool acceptingOrders;
+  final DateTime? breakUntil;
+
+  bool get onBreak => breakUntil != null && breakUntil!.isAfter(DateTime.now());
+  bool get isOpen => acceptingOrders && !onBreak;
+  String get status => onBreak ? 'On break' : acceptingOrders ? 'Open' : 'Closed';
+  String get eta => onBreak ? 'Reopens ${_time(breakUntil!)}' : isOpen ? 'Ready in 18 mins' : 'Not accepting orders';
+
+  static String _time(DateTime value) => '${value.hour == 0 ? 12 : value.hour > 12 ? value.hour - 12 : value.hour}:${value.minute.toString().padLeft(2, '0')} ${value.hour >= 12 ? 'PM' : 'AM'}';
+}
+
+class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
 
   @override
+  State<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends State<DiscoverScreen> {
+  final _repository = const DiscoveryRepository();
+  List<_DiscoveryVendor> _vendors = const [
+    _DiscoveryVendor(id: 'demo-vendor-1', name: 'Little Fern Kitchen', cuisines: 'South Indian · Healthy bowls', acceptingOrders: true),
+    _DiscoveryVendor(id: 'demo-vendor-2', name: 'Bamboo Bowl', cuisines: 'Rice bowls · Curries', acceptingOrders: false),
+    _DiscoveryVendor(id: 'demo-vendor-3', name: 'Saffron Bites', cuisines: 'North Indian · Snacks', acceptingOrders: true),
+  ];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVendors();
+  }
+
+  Future<void> _loadVendors() async {
+    try {
+      final rows = await _repository.fetchApprovedVendors();
+      final vendors = rows.map((row) => _DiscoveryVendor(
+        id: row['id'] as String,
+        name: row['business_name'] as String? ?? 'Vendor',
+        cuisines: row['business_type'] as String? ?? 'Fresh meals',
+        acceptingOrders: row['accepting_orders'] as bool? ?? true,
+        breakUntil: DateTime.tryParse(row['break_until'] as String? ?? '')?.toLocal(),
+      )).toList();
+      if (mounted && vendors.isNotEmpty) setState(() => _vendors = vendors);
+    } catch (_) {
+      // Keep demo vendors available when Supabase is not configured locally.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cards = [
-      const _VendorCard(
-        name: 'Little Fern Kitchen',
-        eta: 'Ready in 18 mins',
-        status: 'Open',
-        cuisines: 'South Indian · Healthy bowls',
-        delivery: 'Pickup · 4.8 ★',
-      ),
+    final cards = _vendors.expand((vendor) => [
+      _VendorCard(vendor: vendor),
       const SizedBox(height: 12),
-      const _VendorCard(
-        name: 'Bamboo Bowl',
-        eta: 'Closed for lunch break',
-        status: 'On break',
-        cuisines: 'Rice bowls · Curries',
-        delivery: 'Pickup · 4.6 ★',
-      ),
-      const SizedBox(height: 12),
-      const _VendorCard(
-        name: 'Saffron Bites',
-        eta: 'Ready in 10 mins',
-        status: 'Open',
-        cuisines: 'North Indian · Snacks',
-        delivery: 'Pickup · 4.9 ★',
-      ),
-    ];
+    ]).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Discover vendors')),
@@ -46,6 +80,7 @@ class DiscoverScreen extends StatelessWidget {
               const _QuickFilterRow(),
               const SizedBox(height: 16),
               const _SectionHeader(title: 'Popular near you'),
+              if (_loading) const LinearProgressIndicator(),
               ...cards,
               const SizedBox(height: 20),
               const _SectionHeader(title: 'Saved favorites'),
@@ -191,34 +226,29 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _VendorCard extends StatelessWidget {
-  const _VendorCard({
-    required this.name,
-    required this.eta,
-    required this.status,
-    required this.cuisines,
-    required this.delivery,
-  });
+  const _VendorCard({required this.vendor});
 
-  final String name;
-  final String eta;
-  final String status;
-  final String cuisines;
-  final String delivery;
+  final _DiscoveryVendor vendor;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = status == 'Open' ? Colors.green : Colors.orange;
+    final statusColor = vendor.isOpen ? Colors.green : Colors.orange;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
+        if (!vendor.isOpen) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${vendor.name} is ${vendor.status.toLowerCase()} and cannot accept orders right now.')));
+          return;
+        }
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => VendorDetailScreen(
-              name: name,
-              eta: eta,
-              status: status,
-              cuisines: cuisines,
+              vendorId: vendor.id,
+              name: vendor.name,
+              eta: vendor.eta,
+              status: vendor.status,
+              cuisines: vendor.cuisines,
             ),
           ),
         );
@@ -245,7 +275,7 @@ class _VendorCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(name, style: Theme.of(context).textTheme.titleMedium)),
+                        Expanded(child: Text(vendor.name, style: Theme.of(context).textTheme.titleMedium)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -253,7 +283,7 @@ class _VendorCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            status,
+                            vendor.status,
                             style: TextStyle(
                               color: statusColor,
                               fontWeight: FontWeight.w700,
@@ -264,17 +294,17 @@ class _VendorCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(cuisines, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(vendor.cuisines, style: Theme.of(context).textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         const Icon(Icons.access_time, size: 16, color: Colors.grey),
                         const SizedBox(width: 6),
-                        Text(eta, style: const TextStyle(color: Colors.grey)),
+                        Text(vendor.eta, style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(delivery, style: const TextStyle(color: Colors.grey)),
+                    Text(vendor.isOpen ? 'Pickup · 4.8 ★' : 'Ordering unavailable', style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
