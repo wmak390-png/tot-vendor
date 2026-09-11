@@ -93,8 +93,10 @@ class VendorOperationsRepository {
   Future<VendorOrder> updateOrderStatus({required String vendorId, required VendorOrder order, required String status}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final row = await client.from('vendor_orders').update({'status': status}).eq('id', order.id).eq('vendor_id', vendorId).select().single();
-    return VendorOrder.fromJson(row);
+    final response = await client.functions.invoke('update-order-status', body: {'orderId': order.id, 'vendorId': vendorId, 'status': status});
+    final data = response.data;
+    if (data is! Map) throw StateError('The order service returned an invalid response.');
+    return VendorOrder.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<VendorMenuSnapshot> fetchMenu(String vendorId) async {

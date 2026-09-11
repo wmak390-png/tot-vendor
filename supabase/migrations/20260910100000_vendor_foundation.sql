@@ -71,6 +71,7 @@ create table if not exists public.orders (
   total_paise integer not null check (total_paise >= 0),
   razorpay_order_id text,
   razorpay_payment_id text,
+  idempotency_key text not null,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -94,6 +95,7 @@ create index if not exists idx_vendor_orders_status on public.vendor_orders(stat
 create index if not exists idx_orders_customer on public.orders(customer_id, created_at desc);
 create index if not exists idx_orders_vendor on public.orders(vendor_id, created_at desc);
 create index if not exists idx_order_items_order on public.order_items(order_id);
+create unique index if not exists idx_orders_customer_idempotency on public.orders(customer_id, idempotency_key);
 
 create or replace function public.is_platform_admin()
 returns boolean
@@ -142,6 +144,83 @@ begin
   return new;
 end;
 $$;
+
+create or replace function public.create_order_with_items(
+  p_vendor_id text,
+  p_customer_id uuid,
+  p_idempotency_key text,
+  p_items jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order_id uuid;
+  v_subtotal integer;
+  v_requested_count integer;
+  v_valid_count integer;
+begin
+  if p_idempotency_key is null or length(trim(p_idempotency_key)) = 0 then
+    raise exception 'Idempotency key is required' using errcode = 'invalid_parameter_value';
+  end if;
+
+  select id into v_order_id
+  from public.orders
+  where customer_id = p_customer_id and idempotency_key = p_idempotency_key;
+  if v_order_id is not null then
+    return (select to_jsonb(o) from public.orders o where o.id = v_order_id);
+  end if;
+
+  if not exists (
+    select 1 from public.vendors
+    where id = p_vendor_id
+      and is_approved
+      and accepting_orders
+      and (break_until is null or break_until <= now())
+  ) then
+    raise exception 'Vendor is not currently accepting orders' using errcode = 'check_violation';
+  end if;
+
+  select count(*) into v_requested_count
+  from jsonb_to_recordset(p_items) as requested(id text, quantity integer);
+
+  select count(*), coalesce(sum(items.price_paise * items.quantity), 0)::integer
+  into v_valid_count, v_subtotal
+  from (
+    select vi.price_paise, requested.quantity
+    from jsonb_to_recordset(p_items) as requested(id text, quantity integer)
+    join public.vendor_items vi on vi.id = requested.id and vi.vendor_id = p_vendor_id
+    where vi.is_available and requested.quantity > 0
+  ) items;
+
+  if v_requested_count = 0 or v_valid_count <> v_requested_count then
+    raise exception 'One or more menu items are invalid or unavailable' using errcode = 'check_violation';
+  end if;
+
+  insert into public.orders (vendor_id, customer_id, status, subtotal_paise, total_paise, idempotency_key)
+  values (p_vendor_id, p_customer_id, 'pending_payment', v_subtotal, v_subtotal, p_idempotency_key)
+  on conflict (customer_id, idempotency_key) do nothing
+  returning id into v_order_id;
+
+  if v_order_id is null then
+    select id into v_order_id from public.orders
+    where customer_id = p_customer_id and idempotency_key = p_idempotency_key;
+    return (select to_jsonb(o) from public.orders o where o.id = v_order_id);
+  end if;
+
+  insert into public.order_items (order_id, menu_item_id, name, quantity, unit_price_paise)
+  select v_order_id, vi.id, vi.name, requested.quantity, vi.price_paise
+  from jsonb_to_recordset(p_items) as requested(id text, quantity integer)
+  join public.vendor_items vi on vi.id = requested.id and vi.vendor_id = p_vendor_id;
+
+  return (select to_jsonb(o) from public.orders o where o.id = v_order_id);
+end;
+$$;
+
+revoke all on function public.create_order_with_items(text, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.create_order_with_items(text, uuid, text, jsonb) to service_role;
 
 drop trigger if exists vendor_order_status_transition on public.vendor_orders;
 create trigger vendor_order_status_transition

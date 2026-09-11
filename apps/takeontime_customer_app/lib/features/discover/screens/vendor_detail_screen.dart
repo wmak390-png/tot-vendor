@@ -254,6 +254,7 @@ class _PlaceOrderButton extends StatefulWidget {
 
 class _PlaceOrderButtonState extends State<_PlaceOrderButton> {
   final _repository = const CustomerOrdersRepository();
+  late final String _idempotencyKey = 'checkout-${DateTime.now().toUtc().microsecondsSinceEpoch}';
   bool _saving = false;
 
   Future<void> _placeOrder() async {
@@ -262,6 +263,7 @@ class _PlaceOrderButtonState extends State<_PlaceOrderButton> {
       await _repository.createOrder(
         vendorId: widget.vendorId,
         itemIds: widget.items.map((item) => item.id).where((id) => id.isNotEmpty).toList(),
+        idempotencyKey: _idempotencyKey,
       );
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (error) {

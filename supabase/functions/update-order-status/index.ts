@@ -18,23 +18,28 @@ Deno.serve(async (request) => {
   if (userError || !userData.user) return json({ error: 'Unauthorized' }, 401);
 
   const body = await request.json().catch(() => null);
+  const orderId = typeof body?.orderId === 'string' ? body.orderId : '';
   const vendorId = typeof body?.vendorId === 'string' ? body.vendorId : '';
-  const itemIds = Array.isArray(body?.itemIds) && body.itemIds.every((id: unknown) => typeof id === 'string') ? body.itemIds as string[] : [];
-  const quantities = body?.quantities && typeof body.quantities === 'object' ? body.quantities as Record<string, unknown> : {};
-  const idempotencyKey = typeof body?.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
-  if (!vendorId || itemIds.length === 0 || !idempotencyKey) return json({ error: 'vendorId, itemIds, and idempotencyKey are required' }, 400);
+  const status = typeof body?.status === 'string' ? body.status : '';
+  if (!orderId || !vendorId || !status) return json({ error: 'orderId, vendorId, and status are required' }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const requestedItems = itemIds.map((id) => ({
-    id,
-    quantity: typeof quantities[id] === 'number' && Number.isInteger(quantities[id]) && (quantities[id] as number) > 0 ? quantities[id] : 1,
-  }));
-  const { data: order, error: orderError } = await adminClient.rpc('create_order_with_items', {
-    p_vendor_id: vendorId,
-    p_customer_id: userData.user.id,
-    p_idempotency_key: idempotencyKey,
-    p_items: requestedItems,
-  });
-  if (orderError) return json({ error: orderError.message, code: orderError.code }, orderError.code === '23505' ? 409 : 400);
-  return json(order, 201);
+  const { data: vendor, error: vendorError } = await adminClient
+    .from('vendors')
+    .select('owner_id')
+    .eq('id', vendorId)
+    .maybeSingle();
+  if (vendorError) return json({ error: vendorError.message }, 500);
+  if (!vendor || vendor.owner_id !== userData.user.id) return json({ error: 'Vendor access denied' }, 403);
+
+  const { data: order, error: updateError } = await adminClient
+    .from('vendor_orders')
+    .update({ status })
+    .eq('id', orderId)
+    .eq('vendor_id', vendorId)
+    .select()
+    .maybeSingle();
+  if (updateError) return json({ error: updateError.message, code: updateError.code }, 409);
+  if (!order) return json({ error: 'Order not found' }, 404);
+  return json(order);
 });

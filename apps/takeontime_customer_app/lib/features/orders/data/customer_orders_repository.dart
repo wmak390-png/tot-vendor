@@ -21,14 +21,18 @@ class CustomerOrder {
 class CustomerOrdersRepository {
   const CustomerOrdersRepository();
 
-  Future<Map<String, dynamic>> createOrder({required String vendorId, required List<String> itemIds}) async {
+  Future<Map<String, dynamic>> createOrder({required String vendorId, required List<String> itemIds, String? idempotencyKey}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
     if (client.auth.currentUser == null) throw StateError('Sign in before placing an order.');
 
     final response = await client.functions.invoke(
       'create-order',
-      body: {'vendorId': vendorId, 'itemIds': itemIds},
+      body: {
+        'vendorId': vendorId,
+        'itemIds': itemIds,
+        'idempotencyKey': idempotencyKey ?? 'checkout-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+      },
     );
     final data = response.data;
     if (data is! Map) throw StateError('The order service returned an invalid response.');

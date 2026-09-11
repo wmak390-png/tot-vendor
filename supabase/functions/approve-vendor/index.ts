@@ -17,24 +17,28 @@ Deno.serve(async (request) => {
   const { data: userData, error: userError } = await userClient.auth.getUser();
   if (userError || !userData.user) return json({ error: 'Unauthorized' }, 401);
 
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: admin, error: adminError } = await adminClient
+    .from('users')
+    .select('role')
+    .eq('id', userData.user.id)
+    .maybeSingle();
+  if (adminError) return json({ error: adminError.message }, 500);
+  if (!admin || admin.role !== 'admin') return json({ error: 'Admin access required' }, 403);
+
   const body = await request.json().catch(() => null);
   const vendorId = typeof body?.vendorId === 'string' ? body.vendorId : '';
-  const itemIds = Array.isArray(body?.itemIds) && body.itemIds.every((id: unknown) => typeof id === 'string') ? body.itemIds as string[] : [];
-  const quantities = body?.quantities && typeof body.quantities === 'object' ? body.quantities as Record<string, unknown> : {};
-  const idempotencyKey = typeof body?.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
-  if (!vendorId || itemIds.length === 0 || !idempotencyKey) return json({ error: 'vendorId, itemIds, and idempotencyKey are required' }, 400);
+  const approved = typeof body?.approved === 'boolean' ? body.approved : null;
+  const approvalNote = typeof body?.approvalNote === 'string' ? body.approvalNote : null;
+  if (!vendorId || approved === null) return json({ error: 'vendorId and approved are required' }, 400);
 
-  const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const requestedItems = itemIds.map((id) => ({
-    id,
-    quantity: typeof quantities[id] === 'number' && Number.isInteger(quantities[id]) && (quantities[id] as number) > 0 ? quantities[id] : 1,
-  }));
-  const { data: order, error: orderError } = await adminClient.rpc('create_order_with_items', {
-    p_vendor_id: vendorId,
-    p_customer_id: userData.user.id,
-    p_idempotency_key: idempotencyKey,
-    p_items: requestedItems,
-  });
-  if (orderError) return json({ error: orderError.message, code: orderError.code }, orderError.code === '23505' ? 409 : 400);
-  return json(order, 201);
+  const { data: vendor, error: updateError } = await adminClient
+    .from('vendors')
+    .update({ is_approved: approved, approval_note: approved ? null : approvalNote, updated_at: new Date().toISOString() })
+    .eq('id', vendorId)
+    .select()
+    .maybeSingle();
+  if (updateError) return json({ error: updateError.message }, 500);
+  if (!vendor) return json({ error: 'Vendor not found' }, 404);
+  return json(vendor);
 });

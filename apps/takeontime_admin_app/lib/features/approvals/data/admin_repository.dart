@@ -50,12 +50,12 @@ class AdminRepository {
   Future<void> approveVendor(String vendorId) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    await client.from('vendors').update({'is_approved': true, 'approval_note': null}).eq('id', vendorId);
+    await client.functions.invoke('approve-vendor', body: {'vendorId': vendorId, 'approved': true});
   }
 
   Future<void> rejectVendor({required String vendorId, required String reason}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    await client.from('vendors').update({'is_approved': false, 'approval_note': reason}).eq('id', vendorId);
+    await client.functions.invoke('approve-vendor', body: {'vendorId': vendorId, 'approved': false, 'approvalNote': reason});
   }
 }
