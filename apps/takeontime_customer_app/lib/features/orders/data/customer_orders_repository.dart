@@ -1,12 +1,23 @@
 import '../../../core/supabase/supabase_bootstrap.dart';
 
 class CustomerOrder {
-  const CustomerOrder({required this.id, required this.status, required this.totalPaise, required this.createdAt});
+  const CustomerOrder({
+    required this.id,
+    required this.status,
+    required this.totalPaise,
+    required this.createdAt,
+    required this.vendorName,
+    required this.notes,
+    required this.items,
+  });
 
   final String id;
   final String status;
   final int totalPaise;
   final DateTime? createdAt;
+  final String vendorName;
+  final String? notes;
+  final List<CustomerOrderItem> items;
 
   factory CustomerOrder.fromJson(Map<String, dynamic> json) {
     return CustomerOrder(
@@ -14,8 +25,28 @@ class CustomerOrder {
       status: json['status'] as String? ?? 'pending_payment',
       totalPaise: (json['total_paise'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
+      vendorName: (json['vendors'] as Map<String, dynamic>?)?['business_name'] as String? ?? 'TakeOnTime vendor',
+      notes: json['notes'] as String?,
+      items: ((json['order_items'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(CustomerOrderItem.fromJson)
+          .toList(),
     );
   }
+}
+
+class CustomerOrderItem {
+  const CustomerOrderItem({required this.name, required this.quantity, required this.unitPricePaise});
+
+  final String name;
+  final int quantity;
+  final int unitPricePaise;
+
+  factory CustomerOrderItem.fromJson(Map<String, dynamic> json) => CustomerOrderItem(
+        name: json['name'] as String? ?? 'Order item',
+        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+        unitPricePaise: (json['unit_price_paise'] as num?)?.toInt() ?? 0,
+      );
 }
 
 class CustomerOrdersRepository {
@@ -45,7 +76,7 @@ class CustomerOrdersRepository {
 
     final rows = await client
         .from('orders')
-        .select('id, status, total_paise, created_at')
+      .select('id, status, subtotal_paise, total_paise, created_at, notes, vendors(business_name), order_items(name, quantity, unit_price_paise)')
         .eq('customer_id', customerId)
         .order('created_at', ascending: false);
     return rows.map((row) => CustomerOrder.fromJson(row)).toList();

@@ -83,6 +83,78 @@ class VendorOrder {
 class VendorOperationsRepository {
   const VendorOperationsRepository();
 
+  Future<String?> resolveVendorId({String? fallback}) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) return fallback;
+    final user = client.auth.currentUser;
+    if (user == null) return fallback;
+
+    try {
+      final row = await client
+          .from('vendors')
+          .select('id')
+          .eq('owner_id', user.id)
+          .order('created_at')
+          .limit(1)
+          .maybeSingle();
+      return row?['id'] as String? ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchOwnedVendor() async {
+    final client = SupabaseBootstrap.client;
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) return null;
+    return client
+        .from('vendors')
+        .select('id, business_name, business_type, address, merchant_id, is_approved, approval_note')
+        .eq('owner_id', user.id)
+        .order('created_at')
+        .limit(1)
+        .maybeSingle();
+  }
+
+  Future<Map<String, dynamic>> createOwnedVendor({
+    required String businessName,
+    required String businessType,
+    required String address,
+  }) async {
+    final client = SupabaseBootstrap.client;
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) {
+      throw StateError('Sign in before creating a vendor profile.');
+    }
+    final row = await client.from('vendors').insert({
+      'id': 'vendor-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+      'owner_id': user.id,
+      'business_name': businessName,
+      'business_type': businessType,
+      'address': address,
+      'merchant_id': '',
+      'accepting_orders': false,
+      'is_approved': false,
+    }).select('id, business_name, business_type, address, merchant_id, is_approved').single();
+    return Map<String, dynamic>.from(row);
+  }
+
+  Future<void> updateVendorProfile({
+    required String vendorId,
+    required String businessName,
+    required String businessType,
+    required String address,
+  }) async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    await client.from('vendors').update({
+      'business_name': businessName,
+      'business_type': businessType,
+      'address': address,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', vendorId);
+  }
+
   Future<List<VendorOrder>> fetchOrders(String vendorId) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
@@ -149,7 +221,7 @@ class VendorOperationsRepository {
   Future<Map<String, dynamic>?> fetchSnapshot(String vendorId) async {
     final client = SupabaseBootstrap.client;
     if (client == null) {
-      throw StateError('Supabase is not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY.');
+      throw StateError('Supabase is not configured. Pass SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.');
     }
 
     final vendor = await client.from('vendors').select().eq('id', vendorId).maybeSingle();
@@ -174,7 +246,7 @@ class VendorOperationsRepository {
   }) async {
     final client = SupabaseBootstrap.client;
     if (client == null) {
-      throw StateError('Supabase is not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY.');
+      throw StateError('Supabase is not configured. Pass SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.');
     }
 
     await client.from('vendors').update({

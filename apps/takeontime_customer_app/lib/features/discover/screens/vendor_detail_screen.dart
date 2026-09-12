@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../orders/data/customer_orders_repository.dart';
 import '../data/discovery_repository.dart';
 
@@ -43,11 +44,11 @@ class VendorDetailScreen extends StatefulWidget {
 
 class _VendorDetailScreenState extends State<VendorDetailScreen> {
   final _repository = const DiscoveryRepository();
-  List<CustomerMenuItem> _items = const [
+  List<CustomerMenuItem> _items = SupabaseBootstrap.client == null ? const [
     CustomerMenuItem(id: 'demo-signature-bowl', name: 'Signature Bowl', description: 'Seasonal vegetables, grains, and house dressing', price: 220, prepMinutes: 12),
     CustomerMenuItem(id: 'demo-tofu-wrap', name: 'Crispy Tofu Wrap', description: 'Crispy tofu, greens, and mint chutney', price: 210, prepMinutes: 10),
     CustomerMenuItem(id: 'demo-mango-bowl', name: 'Mango Rice Bowl', description: 'Mango, basmati rice, and toasted seeds', price: 165, prepMinutes: 8),
-  ];
+  ] : const [];
   final _selectedItems = <String>{};
   bool _loading = true;
 
@@ -62,7 +63,7 @@ class _VendorDetailScreenState extends State<VendorDetailScreen> {
       final rows = await _repository.fetchAvailableItems(widget.vendorId);
       if (mounted && rows.isNotEmpty) setState(() => _items = rows.map(CustomerMenuItem.fromJson).toList());
     } catch (_) {
-      // Keep demo menu content available when Supabase is not configured locally.
+      if (mounted && SupabaseBootstrap.client != null) setState(() => _items = const []);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

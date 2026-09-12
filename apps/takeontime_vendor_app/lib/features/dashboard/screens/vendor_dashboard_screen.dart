@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/vendor_app_service.dart';
+import '../../menu/screens/menu_screen.dart';
+import '../../orders/screens/orders_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../../store/data/vendor_operations_repository.dart';
 
 const _dashboardVendorId = 'demo-vendor-1';
@@ -13,6 +17,8 @@ class VendorDashboardScreen extends StatefulWidget {
 
 class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   final _repository = const VendorOperationsRepository();
+  final _service = const VendorAppService();
+  String _vendorId = _dashboardVendorId;
   bool _acceptingOrders = true;
   DateTime? _breakUntil;
   int _orderCount = 24;
@@ -29,7 +35,8 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
 
   Future<void> _loadSnapshot() async {
     try {
-      final snapshot = await _repository.fetchSnapshot(_dashboardVendorId);
+      _vendorId = await _repository.resolveVendorId(fallback: _dashboardVendorId) ?? _dashboardVendorId;
+      final snapshot = await _repository.fetchSnapshot(_vendorId);
       final vendor = snapshot?['vendor'] as Map<String, dynamic>?;
       final orders = (snapshot?['orders'] as List<dynamic>?) ?? const [];
       if (mounted) {
@@ -48,23 +55,18 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final recentOrders = [
-      const _OrderCard(
-        orderId: '#TOT-4814',
-        customer: 'Aarav Sharma',
-        total: '₹482',
-        status: 'Preparing',
+    final dashboard = _service.dashboard;
+    final recentOrders = dashboard.recentOrders.map((order) => [
+      _OrderCard(
+        orderId: order.orderId,
+        customer: order.customer,
+        total: order.total,
+        status: order.status,
       ),
       const SizedBox(height: 12),
-      const _OrderCard(
-        orderId: '#TOT-4811',
-        customer: 'Meera Iyer',
-        total: '₹349',
-        status: 'Ready',
-      ),
-    ];
+    ]).expand((widgets) => widgets).toList();
 
-    final status = _onBreak ? 'On break' : _acceptingOrders ? 'Open · Accepting orders' : 'Closed · Orders paused';
+    final status = _onBreak ? 'On break' : _acceptingOrders ? dashboard.statusLabel : 'Closed · Orders paused';
     return Scaffold(
       appBar: AppBar(
         title: const Text('TakeOnTime Vendor'),
@@ -93,7 +95,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               const _PerformanceCard(),
               const SizedBox(height: 20),
               _SectionHeader(title: 'Operations insight'),
-              const _InsightCard(),
+              _InsightCard(summary: dashboard.performanceSummary),
               const SizedBox(height: 20),
               _SectionHeader(title: 'Staffing & timing'),
               const _StaffingCard(),
@@ -120,7 +122,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MenuScreen())),
         icon: const Icon(Icons.add_business),
         label: const Text('New item'),
       ),
@@ -240,16 +242,30 @@ class _QuickActionGrid extends StatelessWidget {
         final label = entry.$1;
         final icon = entry.$2;
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 28),
-                const SizedBox(height: 12),
-                Text(label, style: Theme.of(context).textTheme.titleSmall),
-              ],
+          child: InkWell(
+            onTap: () {
+              final screen = switch (label) {
+                'Today\'s Orders' => const OrdersScreen(),
+                'Manage Menu' || 'Add Item' => const MenuScreen(),
+                'Profile' => const ProfileScreen(),
+                _ => null,
+              };
+              if (screen != null) {
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 28),
+                  const SizedBox(height: 12),
+                  Text(label, style: Theme.of(context).textTheme.titleSmall),
+                ],
+              ),
             ),
           ),
         );
@@ -312,7 +328,9 @@ class _PerformanceCard extends StatelessWidget {
 }
 
 class _InsightCard extends StatelessWidget {
-  const _InsightCard();
+  const _InsightCard({required this.summary});
+
+  final String summary;
 
   @override
   Widget build(BuildContext context) {
@@ -321,12 +339,10 @@ class _InsightCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text('Peak demand', style: TextStyle(fontWeight: FontWeight.w700)),
-            SizedBox(height: 8),
-            Text('12:30 PM–2:00 PM is trending 18% higher than usual.'),
-            SizedBox(height: 12),
-            Text('Suggested action: prep 10 extra signature bowls and set one pickup lane.'),
+          children: [
+            const Text('Peak demand', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(summary),
           ],
         ),
       ),

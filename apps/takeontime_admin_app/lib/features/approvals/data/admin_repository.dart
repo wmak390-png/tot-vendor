@@ -20,8 +20,25 @@ class AdminVendor {
       );
 }
 
+class AdminMetrics {
+  const AdminMetrics({required this.activeVendors, required this.ordersToday});
+
+  final int activeVendors;
+  final int ordersToday;
+}
+
 class AdminRepository {
   const AdminRepository();
+
+  Future<AdminMetrics> fetchMetrics() async {
+    final client = SupabaseBootstrap.client;
+    if (client == null) throw StateError('Supabase is not configured.');
+    final startOfDay = DateTime.now();
+    final dayStart = DateTime(startOfDay.year, startOfDay.month, startOfDay.day).toUtc().toIso8601String();
+    final vendors = await client.from('vendors').select('id').eq('is_approved', true);
+    final orders = await client.from('orders').select('id').gte('created_at', dayStart);
+    return AdminMetrics(activeVendors: vendors.length, ordersToday: orders.length);
+  }
 
   Future<List<AdminVendor>> fetchVendors() async {
     final client = SupabaseBootstrap.client;

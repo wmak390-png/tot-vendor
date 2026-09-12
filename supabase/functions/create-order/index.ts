@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, json } from '../_shared/cors.ts';
 
 Deno.serve(async (request) => {
@@ -36,5 +36,14 @@ Deno.serve(async (request) => {
     p_items: requestedItems,
   });
   if (orderError) return json({ error: orderError.message, code: orderError.code }, orderError.code === '23505' ? 409 : 400);
+  if (order?.id) {
+    await adminClient.from('customer_notifications').upsert({
+      customer_id: userData.user.id,
+      order_id: order.id,
+      title: 'Order received',
+      body: `Your order #${String(order.id).slice(0, 8)} was sent to the vendor.`,
+      notification_type: 'order',
+    }, { onConflict: 'order_id', ignoreDuplicates: true });
+  }
   return json(order, 201);
 });

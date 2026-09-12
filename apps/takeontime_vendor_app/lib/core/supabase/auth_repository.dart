@@ -6,7 +6,7 @@ class AuthRepository {
   const AuthRepository();
 
   SupabaseClient get _client => SupabaseBootstrap.client ?? (throw StateError(
-        'Supabase is not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY.',
+        'Supabase is not configured. Pass SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.',
       ));
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;

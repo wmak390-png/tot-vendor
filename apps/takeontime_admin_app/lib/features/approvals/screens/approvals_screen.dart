@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/admin_app_service.dart';
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../data/admin_repository.dart';
 
 class ApprovalsScreen extends StatefulWidget {
@@ -11,20 +13,49 @@ class ApprovalsScreen extends StatefulWidget {
 
 class _ApprovalsScreenState extends State<ApprovalsScreen> {
   final _repository = const AdminRepository();
-  List<AdminVendor> _vendors = const [
-    AdminVendor(id: 'demo-1', businessName: 'Little Fern Kitchen', businessType: 'Veg & healthy bowls', address: 'Bengaluru'),
-    AdminVendor(id: 'demo-2', businessName: 'Bamboo Bowl', businessType: 'Rice bowls & curries', address: 'Hyderabad'),
-    AdminVendor(id: 'demo-3', businessName: 'Saffron Bites', businessType: 'North Indian snacks', address: 'Chennai'),
-  ];
+  final _service = const AdminAppService();
+  List<AdminVendor> _vendors = const [];
   AdminVendor? _selected;
+  int? _activeVendors;
+  int? _ordersToday;
   bool _loading = true;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _selected = _vendors.first;
+    _vendors = SupabaseBootstrap.client == null ? _service.pendingVendors
+        .map((vendor) => AdminVendor(
+              id: vendor.id,
+              businessName: vendor.businessName,
+              businessType: vendor.businessType,
+              address: vendor.address,
+              approvalNote: vendor.note,
+              isApproved: vendor.isApproved,
+            ))
+        .toList() : const [];
+    _selected = _vendors.isEmpty ? null : _vendors.first;
     _loadVendors();
+    _loadMetrics();
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final metrics = await _repository.fetchMetrics();
+      if (mounted) {
+        setState(() {
+          _activeVendors = metrics.activeVendors;
+          _ordersToday = metrics.ordersToday;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _activeVendors = _service.summary.activeVendors;
+          _ordersToday = _service.summary.ordersToday;
+        });
+      }
+    }
   }
 
   Future<void> _loadVendors() async {
@@ -37,7 +68,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
         });
       }
     } catch (_) {
-      // Keep demo approvals available when Supabase is not configured locally.
+      if (mounted && SupabaseBootstrap.client != null) setState(() { _vendors = const []; _selected = null; });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -108,9 +139,9 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
       drawer: const Drawer(child: SafeArea(child: Column(children: [DrawerHeader(child: Text('Admin Console')), ListTile(leading: Icon(Icons.approval), title: Text('Vendor approvals')), ListTile(leading: Icon(Icons.storefront), title: Text('Vendor directory')), ListTile(leading: Icon(Icons.analytics_outlined), title: Text('Orders monitor')), ListTile(leading: Icon(Icons.settings), title: Text('Platform settings'))]))),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [Expanded(child: _SummaryCard(title: 'Pending approvals', value: '${_vendors.length}')), const SizedBox(width: 12), Expanded(child: _SummaryCard(title: 'Active vendors', value: '146'))]),
+          Row(children: [Expanded(child: _SummaryCard(title: 'Pending approvals', value: '${_vendors.length}')), const SizedBox(width: 12), Expanded(child: _SummaryCard(title: 'Active vendors', value: '${_activeVendors ?? _service.summary.activeVendors}'))]),
           const SizedBox(height: 12),
-          const _SummaryCard(title: 'Orders today', value: '1,204'),
+          _SummaryCard(title: 'Orders today', value: '${_ordersToday ?? _service.summary.ordersToday}'),
           const SizedBox(height: 24),
           const Text('Operations overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
@@ -129,7 +160,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           const SizedBox(height: 16),
           if (_selected != null) _ReviewCard(vendor: _selected!, saving: _saving, onApprove: _approve, onReject: _reject),
           const SizedBox(height: 16),
-          const _SummaryInfoCard(title: 'Risk summary', message: 'Vendor compliance checks are reviewed before publication.'),
+          _SummaryInfoCard(title: 'Risk summary', message: _service.summary.riskSummary),
         ]),
       ),
     );

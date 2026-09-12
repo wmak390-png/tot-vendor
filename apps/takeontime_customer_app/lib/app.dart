@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/supabase/auth_gate.dart';
+import 'core/theme/tot_theme.dart';
 import 'features/alerts/screens/alerts_screen.dart';
 import 'features/discover/screens/discover_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
@@ -13,14 +15,8 @@ class CustomerApp extends StatelessWidget {
     return MaterialApp(
       title: 'TakeOnTime Customer',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF16A34A),
-          brightness: Brightness.light,
-        ),
-      ),
-      home: const CustomerShell(),
+      theme: TotTheme.customerTheme,
+      home: const CustomerAuthGate(child: CustomerShell()),
     );
   }
 }

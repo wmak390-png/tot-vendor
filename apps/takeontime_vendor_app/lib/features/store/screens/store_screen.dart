@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/vendor_operations_repository.dart';
 
-const _vendorId = 'demo-vendor-1';
+const _fallbackVendorId = 'demo-vendor-1';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -13,6 +13,7 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> {
   final _repository = const VendorOperationsRepository();
+  String _vendorId = _fallbackVendorId;
   bool _acceptingOrders = true;
   DateTime? _breakUntil;
   bool _loading = true;
@@ -28,6 +29,7 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _loadStore() async {
     try {
+      _vendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
       final snapshot = await _repository.fetchSnapshot(_vendorId);
       final vendor = snapshot?['vendor'] as Map<String, dynamic>?;
       if (vendor != null && mounted) {

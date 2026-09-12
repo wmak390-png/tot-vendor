@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/supabase/auth_gate.dart';
+import 'core/theme/tot_theme.dart';
 import 'features/dashboard/screens/vendor_dashboard_screen.dart';
 import 'features/menu/screens/menu_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
@@ -14,14 +16,8 @@ class VendorApp extends StatelessWidget {
     return MaterialApp(
       title: 'TakeOnTime Vendor',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFF6B35),
-          brightness: Brightness.light,
-        ),
-      ),
-      home: const VendorShell(),
+      theme: TotTheme.vendorTheme,
+      home: const VendorAuthGate(child: VendorShell()),
     );
   }
 }

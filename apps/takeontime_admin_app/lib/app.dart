@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/supabase/auth_gate.dart';
+import 'core/theme/tot_theme.dart';
 import 'features/approvals/screens/approvals_screen.dart';
 import 'features/directory/screens/directory_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
@@ -12,14 +14,8 @@ class AdminApp extends StatelessWidget {
     return MaterialApp(
       title: 'TakeOnTime Admin',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1F2937),
-          brightness: Brightness.light,
-        ),
-      ),
-      home: const AdminShell(),
+      theme: TotTheme.adminTheme,
+      home: const AdminAuthGate(child: AdminShell()),
     );
   }
 }

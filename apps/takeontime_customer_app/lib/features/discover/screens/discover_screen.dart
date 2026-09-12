@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/customer_app_service.dart';
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../data/discovery_repository.dart';
 import 'vendor_detail_screen.dart';
 
@@ -29,16 +31,21 @@ class DiscoverScreen extends StatefulWidget {
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
   final _repository = const DiscoveryRepository();
-  List<_DiscoveryVendor> _vendors = const [
-    _DiscoveryVendor(id: 'demo-vendor-1', name: 'Little Fern Kitchen', cuisines: 'South Indian · Healthy bowls', acceptingOrders: true),
-    _DiscoveryVendor(id: 'demo-vendor-2', name: 'Bamboo Bowl', cuisines: 'Rice bowls · Curries', acceptingOrders: false),
-    _DiscoveryVendor(id: 'demo-vendor-3', name: 'Saffron Bites', cuisines: 'North Indian · Snacks', acceptingOrders: true),
-  ];
+  final _service = const CustomerAppService();
+  List<_DiscoveryVendor> _vendors = const [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _vendors = SupabaseBootstrap.client == null ? _service.vendors
+        .map((vendor) => _DiscoveryVendor(
+              id: vendor.id,
+              name: vendor.name,
+              cuisines: vendor.cuisines,
+              acceptingOrders: vendor.status == 'Open',
+            ))
+        .toList() : const [];
     _loadVendors();
   }
 
@@ -54,7 +61,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       )).toList();
       if (mounted && vendors.isNotEmpty) setState(() => _vendors = vendors);
     } catch (_) {
-      // Keep demo vendors available when Supabase is not configured locally.
+      if (mounted && SupabaseBootstrap.client != null) setState(() => _vendors = const []);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

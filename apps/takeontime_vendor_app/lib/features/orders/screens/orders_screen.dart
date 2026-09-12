@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../store/data/vendor_operations_repository.dart';
 
-const _vendorId = 'demo-vendor-1';
+const _fallbackVendorId = 'demo-vendor-1';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -13,11 +14,12 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   final _repository = const VendorOperationsRepository();
-  List<VendorOrder> _orders = const [
+  String _vendorId = _fallbackVendorId;
+  List<VendorOrder> _orders = SupabaseBootstrap.client == null ? const [
     VendorOrder(id: 'TT-4821', customer: 'Aarav Mehta', item: 'Paneer Tikka Bowl', quantity: 2, amountPaise: 43800, status: 'New', time: '2 min ago', pickup: '12:30 – 12:45 PM', note: 'Less spicy, please'),
     VendorOrder(id: 'TT-4818', customer: 'Meera Shah', item: 'Cold Brew + Masala Omelette', quantity: 1, amountPaise: 26800, status: 'Preparing', time: '18 min ago', pickup: '12:15 – 12:30 PM'),
     VendorOrder(id: 'TT-4812', customer: 'Rohan Kapoor', item: 'Dal Makhani Combo', quantity: 1, amountPaise: 16900, status: 'Ready', time: '32 min ago', pickup: '12:00 – 12:15 PM'),
-  ];
+  ] : const [];
   String _filter = 'All';
   bool _loading = true;
 
@@ -29,7 +31,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> _loadOrders() async {
     try {
-      final orders = await _repository.fetchOrders(_vendorId);
+      final resolvedVendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
+      final orders = await _repository.fetchOrders(resolvedVendorId);
+      _vendorId = resolvedVendorId;
       if (mounted && orders.isNotEmpty) setState(() => _orders = orders);
     } catch (_) {
       // Keep the demo queue available when Supabase is not configured locally.

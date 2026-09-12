@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, json } from '../_shared/cors.ts';
 
 Deno.serve(async (request) => {
@@ -22,6 +22,8 @@ Deno.serve(async (request) => {
   const vendorId = typeof body?.vendorId === 'string' ? body.vendorId : '';
   const status = typeof body?.status === 'string' ? body.status : '';
   if (!orderId || !vendorId || !status) return json({ error: 'orderId, vendorId, and status are required' }, 400);
+  const validStatuses = ['New', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
+  if (!validStatuses.includes(status)) return json({ error: 'Invalid order status' }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
   const { data: vendor, error: vendorError } = await adminClient
@@ -41,5 +43,18 @@ Deno.serve(async (request) => {
     .maybeSingle();
   if (updateError) return json({ error: updateError.message, code: updateError.code }, 409);
   if (!order) return json({ error: 'Order not found' }, 404);
+  const { data: customerOrder } = await adminClient
+    .from('orders')
+    .select('id, customer_id')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (customerOrder) {
+    await adminClient.from('customer_notifications').insert({
+      customer_id: customerOrder.customer_id,
+      title: 'Order status updated',
+      body: `Your order #${String(orderId).slice(0, 8)} is now ${status.toLowerCase()}.`,
+      notification_type: 'order_status',
+    });
+  }
   return json(order);
 });

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/admin_app_service.dart';
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../approvals/data/admin_repository.dart';
 
 class DirectoryScreen extends StatefulWidget {
@@ -11,17 +13,24 @@ class DirectoryScreen extends StatefulWidget {
 
 class _DirectoryScreenState extends State<DirectoryScreen> {
   final _repository = const AdminRepository();
-  List<AdminVendor> _vendors = const [
-    AdminVendor(id: 'demo-1', businessName: 'Little Fern Kitchen', businessType: 'Veg & healthy bowls', address: 'Bengaluru', isApproved: true),
-    AdminVendor(id: 'demo-2', businessName: 'Bamboo Bowl', businessType: 'Rice bowls & curries', address: 'Hyderabad'),
-    AdminVendor(id: 'demo-3', businessName: 'Saffron Bites', businessType: 'North Indian snacks', address: 'Chennai', isApproved: true),
-  ];
+  final _service = const AdminAppService();
+  List<AdminVendor> _vendors = const [];
   final _searchController = TextEditingController();
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _vendors = SupabaseBootstrap.client == null ? _service.pendingVendors
+        .map((vendor) => AdminVendor(
+              id: vendor.id,
+              businessName: vendor.businessName,
+              businessType: vendor.businessType,
+              address: vendor.address,
+              approvalNote: vendor.note,
+              isApproved: vendor.isApproved,
+            ))
+        .toList() : const [];
     _loadVendors();
   }
 
@@ -36,7 +45,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
       final vendors = await _repository.fetchVendors();
       if (mounted && vendors.isNotEmpty) setState(() => _vendors = vendors);
     } catch (_) {
-      // Keep demo directory records available when Supabase is not configured locally.
+      if (mounted && SupabaseBootstrap.client != null) setState(() => _vendors = const []);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

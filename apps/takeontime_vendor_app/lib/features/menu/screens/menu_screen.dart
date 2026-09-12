@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../store/data/vendor_operations_repository.dart';
 
-const _vendorId = 'demo-vendor-1';
+const _fallbackVendorId = 'demo-vendor-1';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -13,6 +14,7 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   final _repository = const VendorOperationsRepository();
+  String _vendorId = _fallbackVendorId;
   final _searchController = TextEditingController();
   final _demoCategories = const [
     VendorMenuCategory(id: 'cat-1', name: 'Breakfast'),
@@ -48,6 +50,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
   Future<void> _loadMenu() async {
     try {
+      _vendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
       final snapshot = await _repository.fetchMenu(_vendorId);
       if (!mounted) return;
       setState(() {
@@ -58,8 +61,8 @@ class _MenuScreenState extends State<MenuScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _categories = _demoCategories;
-        _items = _demoItems;
+        _categories = SupabaseBootstrap.client == null ? _demoCategories : const [];
+        _items = SupabaseBootstrap.client == null ? _demoItems : const [];
         _loading = false;
       });
     }
