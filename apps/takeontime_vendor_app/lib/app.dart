@@ -5,6 +5,7 @@ import 'core/theme/tot_theme.dart';
 import 'features/dashboard/screens/vendor_dashboard_screen.dart';
 import 'features/menu/screens/menu_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
+import 'features/plans/screens/plans_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/store/screens/store_screen.dart';
 
@@ -37,6 +38,7 @@ class _VendorShellState extends State<VendorShell> {
     Icons.receipt_long_outlined,
     Icons.storefront_outlined,
     Icons.restaurant_menu_outlined,
+    Icons.calendar_month_outlined,
     Icons.person_outline,
   ];
 
@@ -45,6 +47,7 @@ class _VendorShellState extends State<VendorShell> {
     'Orders',
     'Store',
     'Menu',
+    'Plans',
     'Profile',
   ];
 
@@ -55,6 +58,7 @@ class _VendorShellState extends State<VendorShell> {
       const OrdersScreen(),
       const StoreScreen(),
       const MenuScreen(),
+      const PlansScreen(),
       const ProfileScreen(),
     ];
 

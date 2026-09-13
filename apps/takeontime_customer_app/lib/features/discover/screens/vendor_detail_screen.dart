@@ -72,7 +72,17 @@ class _VendorDetailScreenState extends State<VendorDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.name)),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('VENDOR MENU', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(widget.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -99,7 +109,7 @@ class _VendorDetailScreenState extends State<VendorDetailScreen> {
                             color: Colors.green.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text(widget.status),
+                          child: Text(widget.status, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                         ),
                       ],
                     ),
@@ -208,7 +218,7 @@ class CheckoutScreen extends StatelessWidget {
               const _SummaryRow(label: 'Pickup', value: '₹0'),
               _SummaryRow(label: 'Total', value: '₹${items.fold<double>(0, (total, item) => total + item.price).toStringAsFixed(0)}'),
               const SizedBox(height: 16),
-              const Text('Payment method: UPI / Cash / Card'),
+              const Text('Payment method: UPI / Card via Razorpay'),
               const Spacer(),
               SizedBox(
                 width: double.infinity,

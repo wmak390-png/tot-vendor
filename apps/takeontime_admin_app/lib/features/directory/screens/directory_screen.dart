@@ -54,7 +54,18 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vendor directory')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('NETWORK', style: TextStyle(fontSize: 10, letterSpacing: 1.4, color: Color(0xFFF09562), fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Vendor directory', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [IconButton(onPressed: _loadVendors, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh directory'), const SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _searchController,

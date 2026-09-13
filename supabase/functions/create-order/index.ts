@@ -36,6 +36,36 @@ Deno.serve(async (request) => {
     p_items: requestedItems,
   });
   if (orderError) return json({ error: orderError.message, code: orderError.code }, orderError.code === '23505' ? 409 : 400);
+  const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
+  const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
+  if (!razorpayKeyId || !razorpayKeySecret || !order?.id || typeof order.total_paise !== 'number') {
+    return json({ error: { code: 'PAYMENT_CONFIGURATION_MISSING', message: 'Online payment is not configured for this environment.' } }, 503);
+  }
+
+  const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`${razorpayKeyId}:${razorpayKeySecret}`)}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: order.total_paise,
+      currency: 'INR',
+      receipt: String(order.id),
+      payment_capture: 1,
+    }),
+  });
+  if (!razorpayResponse.ok) {
+    return json({ error: { code: 'PAYMENT_ORDER_CREATE_FAILED', message: 'Unable to start online payment.' } }, 502);
+  }
+  const razorpayOrder = await razorpayResponse.json();
+  const { data: updatedOrder, error: updateError } = await adminClient
+    .from('orders')
+    .update({ razorpay_order_id: razorpayOrder.id })
+    .eq('id', order.id)
+    .select()
+    .single();
+  if (updateError) return json({ error: updateError.message }, 500);
   if (order?.id) {
     await adminClient.from('customer_notifications').upsert({
       customer_id: userData.user.id,
@@ -45,5 +75,5 @@ Deno.serve(async (request) => {
       notification_type: 'order',
     }, { onConflict: 'order_id', ignoreDuplicates: true });
   }
-  return json(order, 201);
+  return json({ ...updatedOrder, razorpay_key_id: razorpayKeyId }, 201);
 });

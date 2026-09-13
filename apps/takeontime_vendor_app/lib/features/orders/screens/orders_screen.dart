@@ -31,7 +31,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> _loadOrders() async {
     try {
-      final resolvedVendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
+      final resolvedVendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId);
+      if (resolvedVendorId == null || resolvedVendorId.isEmpty) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       final orders = await _repository.fetchOrders(resolvedVendorId);
       _vendorId = resolvedVendorId;
       if (mounted && orders.isNotEmpty) setState(() => _orders = orders);
@@ -71,7 +75,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final active = _orders.where((order) => order.status != 'Completed').length;
     final ready = _orders.where((order) => order.status == 'Ready').length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Orders')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('KITCHEN QUEUE', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Orders', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [IconButton(onPressed: _loadOrders, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh orders'), const SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(16), children: [
           Wrap(spacing: 8, runSpacing: 8, children: [for (final filter in ['All', 'New', 'Preparing', 'Ready', 'Completed']) ChoiceChip(label: Text(filter), selected: _filter == filter, onSelected: (_) => setState(() => _filter = filter))]),
@@ -108,7 +123,7 @@ class _OrderCard extends StatelessWidget {
         title: Text('#${order.id} · ${order.customer}'),
         subtitle: Text('${order.quantity} × ${order.item}\nPickup ${order.pickup}'),
         isThreeLine: true,
-        trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text('₹${(order.amountPaise / 100).toStringAsFixed(0)}', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 4), Text(order.status, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 11))]),
+        trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text('₹${(order.amountPaise / 100).toStringAsFixed(0)}', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 4), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(999)), child: Text(order.status, style: TextStyle(color: statusColor, fontWeight: FontWeight.w800, fontSize: 11))) ]),
       ),
     );
   }

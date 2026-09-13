@@ -135,7 +135,21 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('TakeOnTime Admin')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('TAKEONTIME OPERATIONS', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Color(0xFFF09562), fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Central operations console', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [
+          IconButton(onPressed: _loadVendors, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh approvals'),
+          const SizedBox(width: 8),
+        ],
+      ),
       drawer: const Drawer(child: SafeArea(child: Column(children: [DrawerHeader(child: Text('Admin Console')), ListTile(leading: Icon(Icons.approval), title: Text('Vendor approvals')), ListTile(leading: Icon(Icons.storefront), title: Text('Vendor directory')), ListTile(leading: Icon(Icons.analytics_outlined), title: Text('Orders monitor')), ListTile(leading: Icon(Icons.settings), title: Text('Platform settings'))]))),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(16), children: [

@@ -75,7 +75,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     ]).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Discover vendors')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('TAKEONTIME', style: TextStyle(fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('What are you craving?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [
+          IconButton(onPressed: () {}, icon: const Icon(Icons.location_on_outlined), tooltip: 'Pickup location'),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -130,14 +144,16 @@ class _SearchBar extends StatelessWidget {
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Color(0x0A1F2937), blurRadius: 14, offset: Offset(0, 5))],
       ),
       child: const Row(
         children: [
-          Icon(Icons.search, color: Colors.grey),
+          Icon(Icons.search_rounded, color: Color(0xFF16A34A)),
           SizedBox(width: 12),
-          Text('Search for cuisines or dishes'),
+          Text('Search cuisines, dishes, or vendors', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
         ],
       ),
     );

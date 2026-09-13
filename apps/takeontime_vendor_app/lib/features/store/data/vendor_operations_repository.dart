@@ -65,17 +65,33 @@ class VendorOrder {
   final String pickup;
   final String? note;
 
-  factory VendorOrder.fromJson(Map<String, dynamic> json) => VendorOrder(
-        id: json['id'] as String,
-        customer: json['customer'] as String? ?? 'Customer',
-        item: json['item'] as String? ?? 'Order items',
-        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
-        amountPaise: (json['amount_paise'] as num?)?.toInt() ?? 0,
-        status: json['status'] as String? ?? 'New',
-        time: json['time'] as String? ?? 'Recently',
-        pickup: json['pickup'] as String? ?? 'Pickup time not set',
-        note: json['note'] as String?,
-      );
+  factory VendorOrder.fromJson(Map<String, dynamic> json) {
+    final customer = json['customer'] as Map<String, dynamic>?;
+    final items = ((json['order_items'] as List<dynamic>?) ?? const []).whereType<Map<String, dynamic>>().toList();
+    return VendorOrder(
+      id: json['id'] as String,
+      customer: customer?['full_name'] as String? ?? customer?['email'] as String? ?? 'Customer',
+      item: items.map((item) => '${item['quantity'] ?? 1} x ${item['name'] ?? 'Order item'}').join(', '),
+      quantity: items.fold<int>(0, (total, item) => total + ((item['quantity'] as num?)?.toInt() ?? 1)),
+      amountPaise: (json['total_paise'] as num?)?.toInt() ?? 0,
+      status: _displayStatus(json['status'] as String? ?? 'pending_payment'),
+      time: _displayTime(json['created_at'] as String?),
+      pickup: 'Pickup time to be confirmed',
+      note: json['notes'] as String?,
+    );
+  }
+
+  static String _displayStatus(String status) => switch (status) {
+        'confirmed' => 'Accepted',
+        'accepted' => 'Accepted',
+        'preparing' => 'Preparing',
+        'ready' => 'Ready',
+        'completed' => 'Completed',
+        'cancelled' || 'rejected' => 'Cancelled',
+        _ => 'New',
+      };
+
+  static String _displayTime(String? value) => value == null ? 'Recently' : DateTime.tryParse(value)?.toLocal().toString() ?? 'Recently';
 
   VendorOrder copyWith({String? status}) => VendorOrder(id: id, customer: customer, item: item, quantity: quantity, amountPaise: amountPaise, status: status ?? this.status, time: time, pickup: pickup, note: note);
 }
@@ -97,7 +113,7 @@ class VendorOperationsRepository {
           .order('created_at')
           .limit(1)
           .maybeSingle();
-      return row?['id'] as String? ?? fallback;
+      return row?['id'] as String?;
     } catch (_) {
       return fallback;
     }
@@ -158,18 +174,27 @@ class VendorOperationsRepository {
   Future<List<VendorOrder>> fetchOrders(String vendorId) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final rows = await client.from('vendor_orders').select().eq('vendor_id', vendorId).order('updated_at', ascending: false);
+    final rows = await client.from('orders').select('id, status, total_paise, created_at, notes, customer:users(full_name, email), order_items(name, quantity, unit_price_paise)').eq('vendor_id', vendorId).order('created_at', ascending: false);
     return rows.map((row) => VendorOrder.fromJson(row)).toList();
   }
 
   Future<VendorOrder> updateOrderStatus({required String vendorId, required VendorOrder order, required String status}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final response = await client.functions.invoke('update-order-status', body: {'orderId': order.id, 'vendorId': vendorId, 'status': status});
+    final response = await client.functions.invoke('update-order-status', body: {'orderId': order.id, 'vendorId': vendorId, 'newStatus': _canonicalStatus(status)});
     final data = response.data;
     if (data is! Map) throw StateError('The order service returned an invalid response.');
     return VendorOrder.fromJson(Map<String, dynamic>.from(data));
   }
+
+  String _canonicalStatus(String status) => switch (status) {
+        'Accepted' => 'accepted',
+        'Preparing' => 'preparing',
+        'Ready' => 'ready',
+        'Completed' => 'completed',
+        'Cancelled' => 'cancelled',
+        _ => 'accepted',
+      };
 
   Future<VendorMenuSnapshot> fetchMenu(String vendorId) async {
     final client = SupabaseBootstrap.client;

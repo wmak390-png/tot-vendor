@@ -29,7 +29,12 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _loadStore() async {
     try {
-      _vendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
+      final resolvedVendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId);
+      if (resolvedVendorId == null || resolvedVendorId.isEmpty) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      _vendorId = resolvedVendorId;
       final snapshot = await _repository.fetchSnapshot(_vendorId);
       final vendor = snapshot?['vendor'] as Map<String, dynamic>?;
       if (vendor != null && mounted) {
@@ -98,16 +103,28 @@ class _StoreScreenState extends State<StoreScreen> {
     final status = _onBreak ? 'On break' : _acceptingOrders ? 'Open' : 'Closed';
     final statusColor = _onBreak ? Colors.orange : _acceptingOrders ? Colors.green : Colors.red;
     return Scaffold(
-      appBar: AppBar(title: const Text('Store')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('STORE OPERATIONS', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Tiffin & Co.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [IconButton(onPressed: _loadStore, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh store data'), const SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(16), children: [
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.14), child: Icon(Icons.storefront, color: statusColor)),
+                Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(15)), child: Icon(Icons.storefront_rounded, color: statusColor)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(status, style: Theme.of(context).textTheme.titleLarge), Text(_onBreak ? 'Reopens ${_formatTime(_breakUntil!)}' : _acceptingOrders ? 'Customers can place orders' : 'Orders are paused', style: Theme.of(context).textTheme.bodyMedium)])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(999)), child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w800))),
                 if (_saving) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
               ]),
             ),

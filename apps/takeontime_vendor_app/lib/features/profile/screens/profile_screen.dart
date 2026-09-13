@@ -37,13 +37,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final vendor = await _repository.fetchOwnedVendor();
       if (mounted && vendor != null) {
+        final approvalNote = vendor['approval_note'] as String?;
         setState(() {
           _vendorId = vendor['id'] as String?;
           _businessName = vendor['business_name'] as String? ?? _businessName;
           _businessType = vendor['business_type'] as String? ?? _businessType;
           _address = vendor['address'] as String? ?? _address;
           _merchantId = vendor['merchant_id'] as String? ?? _merchantId;
-          _approvalStatus = vendor['is_approved'] == true ? 'Approved' : 'Pending approval';
+          if (vendor['is_approved'] == true) {
+            _approvalStatus = 'Approved';
+          } else if (approvalNote != null && approvalNote.trim().isNotEmpty) {
+            _approvalStatus = 'Rejected';
+          } else {
+            _approvalStatus = 'Pending approval';
+          }
         });
       }
     } finally {

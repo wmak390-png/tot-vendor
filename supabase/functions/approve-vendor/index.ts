@@ -28,9 +28,11 @@ Deno.serve(async (request) => {
 
   const body = await request.json().catch(() => null);
   const vendorId = typeof body?.vendorId === 'string' ? body.vendorId : '';
-  const approved = typeof body?.approved === 'boolean' ? body.approved : null;
-  const approvalNote = typeof body?.approvalNote === 'string' ? body.approvalNote : null;
-  if (!vendorId || approved === null) return json({ error: 'vendorId and approved are required' }, 400);
+  const decision = body?.decision === 'approve' || body?.decision === 'reject' ? body.decision : null;
+  const approved = decision === 'approve' ? true : decision === 'reject' ? false : typeof body?.approved === 'boolean' ? body.approved : null;
+  const approvalNote = typeof body?.reason === 'string' ? body.reason.trim() : typeof body?.approvalNote === 'string' ? body.approvalNote.trim() : '';
+  if (!vendorId || approved === null) return json({ error: 'vendorId and decision are required' }, 400);
+  if (!approved && !approvalNote) return json({ error: 'A rejection reason is required', code: 'REJECTION_REASON_REQUIRED' }, 400);
 
   const { data: vendor, error: updateError } = await adminClient
     .from('vendors')
@@ -40,5 +42,5 @@ Deno.serve(async (request) => {
     .maybeSingle();
   if (updateError) return json({ error: updateError.message }, 500);
   if (!vendor) return json({ error: 'Vendor not found' }, 404);
-  return json(vendor);
+  return json({ ...vendor, decision: approved ? 'approve' : 'reject' });
 });

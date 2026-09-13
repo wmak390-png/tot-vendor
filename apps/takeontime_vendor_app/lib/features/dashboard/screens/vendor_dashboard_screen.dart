@@ -35,7 +35,12 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
 
   Future<void> _loadSnapshot() async {
     try {
-      _vendorId = await _repository.resolveVendorId(fallback: _dashboardVendorId) ?? _dashboardVendorId;
+      final resolvedVendorId = await _repository.resolveVendorId(fallback: _dashboardVendorId);
+      if (resolvedVendorId == null || resolvedVendorId.isEmpty) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      _vendorId = resolvedVendorId;
       final snapshot = await _repository.fetchSnapshot(_vendorId);
       final vendor = snapshot?['vendor'] as Map<String, dynamic>?;
       final orders = (snapshot?['orders'] as List<dynamic>?) ?? const [];
@@ -69,9 +74,19 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
     final status = _onBreak ? 'On break' : _acceptingOrders ? dashboard.statusLabel : 'Closed · Orders paused';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TakeOnTime Vendor'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('VENDOR CONTROL ROOM', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Tiffin & Co.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [
+          IconButton(onPressed: _loadSnapshot, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh store data'),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -141,22 +156,42 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
-      color: scheme.primaryContainer,
+      color: scheme.secondary,
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(title, style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 12),
-            Text(value, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(15)),
+              child: const Icon(Icons.storefront_rounded, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title.toUpperCase(), style: const TextStyle(color: Color(0xFFB9C9BF), fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: const TextStyle(color: Color(0xFFB9C9BF), fontSize: 12)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+              child: Text(_statusLabel(value), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+            ),
           ],
         ),
       ),
     );
   }
+
+  static String _statusLabel(String value) => value.toLowerCase().contains('closed') ? 'PAUSED' : value.toLowerCase().contains('break') ? 'BREAK' : 'OPEN';
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -261,9 +296,13 @@ class _QuickActionGrid extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, size: 28),
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(12)),
+                    child: Icon(icon, size: 22, color: Theme.of(context).colorScheme.primary),
+                  ),
                   const SizedBox(height: 12),
-                  Text(label, style: Theme.of(context).textTheme.titleSmall),
+                  Text(label, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
                 ],
               ),
             ),

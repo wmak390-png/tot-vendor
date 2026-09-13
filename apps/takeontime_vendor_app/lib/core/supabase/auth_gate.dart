@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/profile/screens/vendor_verification_screen.dart';
 import 'auth_repository.dart';
 import 'supabase_bootstrap.dart';
 
@@ -9,6 +10,22 @@ class VendorAuthGate extends StatelessWidget {
 
   final Widget child;
 
+  Future<Map<String, dynamic>?> _fetchVendorStatus() async {
+    final client = SupabaseBootstrap.client;
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) return null;
+
+    final row = await client
+        .from('vendors')
+        .select('id, is_approved, approval_note')
+        .eq('owner_id', user.id)
+        .order('created_at')
+        .limit(1)
+        .maybeSingle();
+
+    return row == null ? null : Map<String, dynamic>.from(row);
+  }
+
   @override
   Widget build(BuildContext context) {
     final client = SupabaseBootstrap.client;
@@ -16,8 +33,26 @@ class VendorAuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        if (client.auth.currentSession != null) return child;
-        return const AuthScreen(roleLabel: 'Vendor workspace');
+        if (client.auth.currentSession == null) {
+          return const AuthScreen(roleLabel: 'Vendor workspace');
+        }
+
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _fetchVendorStatus(),
+          builder: (context, vendorSnapshot) {
+            if (!vendorSnapshot.hasData) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            }
+            final vendor = vendorSnapshot.data;
+            final isApproved = vendor?['is_approved'] == true;
+            final isRejected = vendor != null && vendor['is_approved'] == false && vendor['approval_note'] != null;
+            if (isApproved) return child;
+            return VendorVerificationScreen(
+              isRejected: isRejected,
+              reason: vendor?['approval_note'] as String?,
+            );
+          },
+        );
       },
     );
   }

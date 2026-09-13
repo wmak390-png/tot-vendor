@@ -5,6 +5,7 @@ import 'core/theme/tot_theme.dart';
 import 'features/alerts/screens/alerts_screen.dart';
 import 'features/discover/screens/discover_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
+import 'features/plans/screens/plans_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 
 class CustomerApp extends StatelessWidget {
@@ -33,6 +34,7 @@ class _CustomerShellState extends State<CustomerShell> {
 
   final screens = [
     const DiscoverScreen(),
+    const PlansScreen(),
     const OrdersScreen(),
     const AlertsScreen(),
     const ProfileScreen(),
@@ -50,6 +52,7 @@ class _CustomerShellState extends State<CustomerShell> {
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search_outlined), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), label: 'Meal plans'),
           NavigationDestination(icon: Icon(Icons.shopping_bag_outlined), label: 'Orders'),
           NavigationDestination(icon: Icon(Icons.notifications_none), label: 'Alerts'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),

@@ -80,7 +80,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Orders')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('YOUR ACTIVITY', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Orders', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        actions: [IconButton(onPressed: _loadOrders, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh orders'), const SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -100,7 +111,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     Text(order.status),
                   ],
                 ),
-                trailing: Text(order.time),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(999)),
+                  child: Text(order.status, style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 11, fontWeight: FontWeight.w800)),
+                ),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -145,9 +160,7 @@ class OrderDetailScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       const Text('Order timeline'),
                       const SizedBox(height: 8),
-                      const _TimelineRow(label: 'Placed', time: '11:20 AM'),
-                      const _TimelineRow(label: 'Kitchen confirmed', time: '11:28 AM'),
-                      const _TimelineRow(label: 'Pickup ready', time: '11:42 AM'),
+                      _StatusTimeline(status: order.status),
                     ],
                   ),
                 ),
@@ -226,6 +239,27 @@ class _TimelineRow extends StatelessWidget {
           Text(time, style: const TextStyle(color: Colors.grey)),
         ],
       ),
+    );
+  }
+}
+
+class _StatusTimeline extends StatelessWidget {
+  const _StatusTimeline({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = ['confirmed', 'accepted', 'preparing', 'ready', 'completed'];
+    final current = steps.indexOf(status.toLowerCase());
+    return Column(
+      children: [
+        for (var index = 0; index < steps.length; index++)
+          _TimelineRow(
+            label: steps[index][0].toUpperCase() + steps[index].substring(1),
+            time: index <= current ? 'Complete' : index == current + 1 ? 'Next' : 'Waiting',
+          ),
+      ],
     );
   }
 }

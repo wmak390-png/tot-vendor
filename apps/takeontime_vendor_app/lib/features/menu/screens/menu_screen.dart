@@ -50,7 +50,17 @@ class _MenuScreenState extends State<MenuScreen> {
 
   Future<void> _loadMenu() async {
     try {
-      _vendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId) ?? _fallbackVendorId;
+      final resolvedVendorId = await _repository.resolveVendorId(fallback: _fallbackVendorId);
+      if (resolvedVendorId == null || resolvedVendorId.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _categories = SupabaseBootstrap.client == null ? _demoCategories : const [];
+          _items = SupabaseBootstrap.client == null ? _demoItems : const [];
+          _loading = false;
+        });
+        return;
+      }
+      _vendorId = resolvedVendorId;
       final snapshot = await _repository.fetchMenu(_vendorId);
       if (!mounted) return;
       setState(() {
@@ -142,7 +152,17 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Menu')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('MENU MANAGEMENT', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+            SizedBox(height: 2),
+            Text('Your menu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
       body: _loading ? const Center(child: CircularProgressIndicator()) : _selectedCategory == null ? _buildCategories() : _buildItems(),
     );
   }
@@ -155,14 +175,18 @@ class _MenuScreenState extends State<MenuScreen> {
         const SizedBox(height: 6),
         Text('Keep your menu easy to browse during the rush.', style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 16),
-        FilledButton.icon(onPressed: _addCategory, icon: const Icon(Icons.add), label: const Text('Add category')),
+        FilledButton.icon(onPressed: _addCategory, icon: const Icon(Icons.add_rounded), label: const Text('Add category')),
         const SizedBox(height: 12),
         ..._categories.map((category) => Card(
               child: ListTile(
-                leading: CircleAvatar(child: Icon(_iconForCategory(category.name))),
-                title: Text(category.name),
-                subtitle: Text('${_items.where((item) => item.categoryId == category.id).length} items'),
-                trailing: const Icon(Icons.chevron_right),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(_iconForCategory(category.name), color: Theme.of(context).colorScheme.primary),
+                ),
+                title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text('${_items.where((item) => item.categoryId == category.id).length} items', style: const TextStyle(fontSize: 12)),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                 onTap: () => _openItems(category),
               ),
             )),
@@ -180,7 +204,7 @@ class _MenuScreenState extends State<MenuScreen> {
           TextButton.icon(onPressed: () => setState(() => _selectedCategory = null), icon: const Icon(Icons.layers_outlined), label: const Text('Categories')),
         ]),
         const SizedBox(height: 8),
-        TextField(controller: _searchController, onChanged: (_) => setState(() {}), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search items', border: OutlineInputBorder())),
+        TextField(controller: _searchController, onChanged: (_) => setState(() {}), decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search items', filled: true, border: InputBorder.none)),
         const SizedBox(height: 10),
         Row(children: [
           for (final filter in ['All', 'Active', 'Sold Out']) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(filter), selected: _filter == filter, onSelected: (_) => setState(() => _filter = filter))),
@@ -192,8 +216,12 @@ class _MenuScreenState extends State<MenuScreen> {
         ..._filteredItems.map((item) => Card(
               child: ListTile(
                 onTap: () => _editItem(item: item),
-                leading: const CircleAvatar(child: Icon(Icons.restaurant)),
-                title: Text(item.name),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: item.isAvailable ? Theme.of(context).colorScheme.primaryContainer : const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.restaurant_rounded, color: item.isAvailable ? Theme.of(context).colorScheme.primary : const Color(0xFF9CA3AF)),
+                ),
+                title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text('${item.description}\n₹${item.price.toStringAsFixed(0)} · ${item.prepMinutes} min prep', maxLines: 2, overflow: TextOverflow.ellipsis),
                 isThreeLine: true,
                 trailing: Switch(value: item.isAvailable, onChanged: (value) => _toggleItem(item, value)),
