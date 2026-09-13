@@ -10,7 +10,8 @@ async function verifySignature(payload: Uint8Array, signature: string, secret: s
     ['verify'],
   );
   const encoded = Uint8Array.from(signature.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ?? []);
-  return crypto.subtle.verify('HMAC', key, encoded, payload);
+  const payloadBuffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength) as ArrayBuffer;
+  return crypto.subtle.verify('HMAC', key, encoded, payloadBuffer);
 }
 
 Deno.serve(async (request) => {

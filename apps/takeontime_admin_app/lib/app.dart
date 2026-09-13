@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'core/supabase/auth_gate.dart';
 import 'core/theme/tot_theme.dart';
 import 'features/approvals/screens/approvals_screen.dart';
+import 'features/audit/screens/audit_screen.dart';
 import 'features/directory/screens/directory_screen.dart';
+import 'features/finance/screens/finance_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 
 class AdminApp extends StatelessWidget {
@@ -33,6 +35,8 @@ class _AdminShellState extends State<AdminShell> {
   final screens = [
     const ApprovalsScreen(),
     const DirectoryScreen(),
+    const FinanceScreen(),
+    const AuditScreen(),
     const SettingsScreen(),
   ];
 
@@ -46,6 +50,8 @@ class _AdminShellState extends State<AdminShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.approval), label: 'Approvals'),
           NavigationDestination(icon: Icon(Icons.storefront), label: 'Directory'),
+          NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Finance'),
+          NavigationDestination(icon: Icon(Icons.history_edu_rounded), label: 'Audit'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),

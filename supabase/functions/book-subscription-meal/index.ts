@@ -30,7 +30,9 @@ Deno.serve(async (request) => {
   if (!subscription || subscription.user_id !== userData.user.id) return json({ error: 'Subscription not found' }, 404);
   if (subscription.status !== 'active' || subscription.meals_remaining < 1 || new Date(`${subscription.end_date}T23:59:59Z`) < pickupTime) return json({ error: { code: 'SUBSCRIPTION_UNAVAILABLE', message: 'This meal plan cannot be used for that booking.' } }, 409);
 
-  const plan = subscription.subscription_plans as Record<string, unknown>;
+  const plan = subscription.subscription_plans as unknown as Record<string, unknown> | null;
+  if (!plan) return json({ error: { code: 'PLAN_DATA_MISSING', message: 'This subscription plan is missing required data.' } }, 409);
+
   const startOfDay = new Date(pickupTime);
   startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
@@ -59,6 +61,26 @@ Deno.serve(async (request) => {
     expires_at: new Date(pickupTime.getTime() + 60 * 60 * 1000).toISOString(),
   });
   if (reservationError) return json({ error: reservationError.message }, 409);
+
+  const { error: usageError } = await adminClient.from('subscription_usage').insert({
+    subscription_id: subscription.id,
+    subscription_order_id: subscriptionOrder.id,
+    meal_count: 1,
+    used_date: pickupTime.toISOString().slice(0, 10),
+  });
+  if (usageError) return json({ error: usageError.message }, 409);
+
   await adminClient.from('user_subscriptions').update({ meals_remaining: subscription.meals_remaining - 1, meals_reserved: subscription.meals_reserved + 1 }).eq('id', subscription.id);
+  try {
+    await adminClient.from('audit_logs').insert({
+      actor_id: userData.user.id,
+      action: 'book_subscription_meal',
+      target_table: 'subscription_orders',
+      target_id: subscriptionOrder.id,
+      metadata: { subscription_id: subscription.id, meal_slot: mealSlot, pickup_time: pickupTime.toISOString() },
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
   return json(subscriptionOrder, 201);
 });

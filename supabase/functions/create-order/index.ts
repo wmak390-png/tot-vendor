@@ -67,6 +67,26 @@ Deno.serve(async (request) => {
     .single();
   if (updateError) return json({ error: updateError.message }, 500);
   if (order?.id) {
+    try {
+      await adminClient.from('order_status_log').insert({
+        order_id: order.id,
+        status: 'pending_payment',
+        actor_id: userData.user.id,
+      });
+    } catch {
+      // Best-effort event tracking only.
+    }
+    try {
+      await adminClient.from('audit_logs').insert({
+        actor_id: userData.user.id,
+        action: 'create_order',
+        target_table: 'orders',
+        target_id: order.id,
+        metadata: { vendor_id: vendorId, item_count: itemIds.length },
+      });
+    } catch {
+      // Best-effort event tracking only.
+    }
     await adminClient.from('customer_notifications').upsert({
       customer_id: userData.user.id,
       order_id: order.id,

@@ -45,5 +45,27 @@ Deno.serve(async (request) => {
     .select()
     .single();
   if (updateError) return json({ error: updateError.message }, 409);
+
+  try {
+    await adminClient.from('order_status_log').insert({
+      order_id: order.id,
+      status: 'completed',
+      actor_id: userData.user.id,
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+  try {
+    await adminClient.from('audit_logs').insert({
+      actor_id: userData.user.id,
+      action: 'verify_pickup',
+      target_table: 'orders',
+      target_id: order.id,
+      metadata: { verified_by: userData.user.id, pickup_code_match: true },
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+
   return json({ verified: true, order: updatedOrder });
 });

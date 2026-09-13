@@ -36,6 +36,27 @@ Deno.serve(async (request) => {
     .single();
   if (updateError) return json({ error: updateError.message }, 409);
 
+  try {
+    await adminClient.from('order_status_log').insert({
+      order_id: order.id,
+      status: 'cancelled',
+      actor_id: userData.user.id,
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+  try {
+    await adminClient.from('audit_logs').insert({
+      actor_id: userData.user.id,
+      action: 'cancel_order',
+      target_table: 'orders',
+      target_id: order.id,
+      metadata: { customer_id: order.customer_id, amount_paise: order.customer_paid_paise },
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+
   if (order.customer_paid_paise > 0) {
     await adminClient.from('refunds').insert({ order_id: order.id, amount_paise: order.customer_paid_paise, reason: 'Customer cancellation within window' });
   }

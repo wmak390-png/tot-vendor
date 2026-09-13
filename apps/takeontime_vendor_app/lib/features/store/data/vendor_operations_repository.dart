@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../../core/supabase/supabase_bootstrap.dart';
 
 class VendorMenuCategory {
@@ -199,48 +201,90 @@ class VendorOperationsRepository {
   Future<VendorMenuSnapshot> fetchMenu(String vendorId) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final categories = await client.from('vendor_categories').select().eq('vendor_id', vendorId).order('sort_order');
-    final items = await client.from('vendor_items').select().eq('vendor_id', vendorId);
+
+    final plans = await client
+        .from('subscription_plans')
+        .select('id, vendor_id, name, description, base_price_paise, total_meals, duration_days, is_active')
+        .eq('vendor_id', vendorId)
+        .order('created_at', ascending: false);
+
     return VendorMenuSnapshot(
-      categories: categories.map((row) => VendorMenuCategory.fromJson(row)).toList(),
-      items: items.map((row) => VendorMenuItem.fromJson(row)).toList(),
+      categories: const [],
+      items: plans.map((row) => VendorMenuItem(
+        id: row['id'] as String,
+        categoryId: row['vendor_id'] as String? ?? vendorId,
+        name: row['name'] as String? ?? 'Meal plan',
+        description: (row['description'] as String?) ?? '',
+        price: ((row['base_price_paise'] as num?)?.toDouble() ?? 0) / 100,
+        prepMinutes: row['duration_days'] as int? ?? 30,
+        isAvailable: row['is_active'] as bool? ?? true,
+      )).toList(),
     );
   }
 
   Future<VendorMenuCategory> createCategory({required String vendorId, required String name}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final row = await client.from('vendor_categories').insert({'id': 'cat-${DateTime.now().millisecondsSinceEpoch}', 'vendor_id': vendorId, 'name': name, 'accent': 'sparkles', 'sort_order': 99, 'is_active': true}).select().single();
-    return VendorMenuCategory.fromJson(row);
+    final row = await client.from('subscription_plans').insert({
+      'id': 'plan-${DateTime.now().millisecondsSinceEpoch}',
+      'vendor_id': vendorId,
+      'name': name,
+      'description': 'Vendor-created plan',
+      'total_meals': 1,
+      'duration_days': 30,
+      'daily_limit': 1,
+      'base_price_paise': 0,
+      'meal_slots': [{'slot': 'lunch', 'description': 'Daily lunch meal'}],
+      'is_active': true,
+    }).select().single();
+    return VendorMenuCategory(id: row['id'] as String, name: row['name'] as String? ?? name);
   }
 
   Future<VendorMenuItem> createItem({required String vendorId, required String categoryId, required String name, required String description, required double price, required int prepMinutes, required bool isAvailable}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final row = await client.from('vendor_items').insert({
-      'id': 'item-${DateTime.now().millisecondsSinceEpoch}',
+    final row = await client.from('subscription_plans').insert({
+      'id': 'plan-${DateTime.now().millisecondsSinceEpoch}',
       'vendor_id': vendorId,
-      'category_id': categoryId,
       'name': name,
       'description': description,
-      'price_paise': (price * 100).round(),
-      'prep_minutes': prepMinutes,
-      'is_available': isAvailable,
+      'total_meals': math.max(1, prepMinutes),
+      'duration_days': math.max(1, prepMinutes),
+      'daily_limit': 1,
+      'base_price_paise': (price * 100).round(),
+      'meal_slots': [{'slot': 'lunch', 'description': description}],
+      'is_active': isAvailable,
     }).select().single();
-    return VendorMenuItem.fromJson(row);
+    return VendorMenuItem.fromJson({
+      'id': row['id'],
+      'category_id': categoryId,
+      'name': row['name'],
+      'description': row['description'],
+      'price_paise': row['base_price_paise'],
+      'prep_minutes': row['duration_days'],
+      'is_available': row['is_active'],
+    });
   }
 
   Future<VendorMenuItem> updateItem({required String vendorId, required VendorMenuItem item, String? name, String? description, double? price, int? prepMinutes, bool? isAvailable}) async {
     final client = SupabaseBootstrap.client;
     if (client == null) throw StateError('Supabase is not configured.');
-    final row = await client.from('vendor_items').update({
+    final row = await client.from('subscription_plans').update({
       'name': name ?? item.name,
       'description': description ?? item.description,
-      'price_paise': ((price ?? item.price) * 100).round(),
-      'prep_minutes': prepMinutes ?? item.prepMinutes,
-      'is_available': isAvailable ?? item.isAvailable,
+      'base_price_paise': ((price ?? item.price) * 100).round(),
+      'duration_days': prepMinutes ?? item.prepMinutes,
+      'is_active': isAvailable ?? item.isAvailable,
     }).eq('id', item.id).eq('vendor_id', vendorId).select().single();
-    return VendorMenuItem.fromJson(row);
+    return VendorMenuItem.fromJson({
+      'id': row['id'],
+      'category_id': vendorId,
+      'name': row['name'],
+      'description': row['description'],
+      'price_paise': row['base_price_paise'],
+      'prep_minutes': row['duration_days'],
+      'is_available': row['is_active'],
+    });
   }
 
   Future<Map<String, dynamic>?> fetchSnapshot(String vendorId) async {
@@ -252,15 +296,20 @@ class VendorOperationsRepository {
     final vendor = await client.from('vendors').select().eq('id', vendorId).maybeSingle();
     if (vendor == null) return null;
 
-    final categories = await client.from('vendor_categories').select().eq('vendor_id', vendorId).order('sort_order');
-    final items = await client.from('vendor_items').select().eq('vendor_id', vendorId);
-    final orders = await client.from('vendor_orders').select().eq('vendor_id', vendorId).order('updated_at', ascending: false);
+    final plans = await client
+        .from('subscription_plans')
+        .select('id, name, description, total_meals, duration_days, base_price_paise, is_active')
+        .eq('vendor_id', vendorId)
+        .order('created_at', ascending: false);
+    final orders = await client.from('orders').select('id, status, total_paise, created_at, customer_id').eq('vendor_id', vendorId).order('created_at', ascending: false);
+    final settlements = await client.from('settlement_batches').select().eq('vendor_id', vendorId).order('created_at', ascending: false);
 
     return {
       'vendor': vendor,
-      'categories': categories,
-      'items': items,
+      'categories': const [],
+      'items': plans,
       'orders': orders,
+      'settlements': settlements,
     };
   }
 

@@ -7,6 +7,8 @@ import 'features/discover/screens/discover_screen.dart';
 import 'features/orders/screens/orders_screen.dart';
 import 'features/plans/screens/plans_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'features/reservations/screens/reservations_screen.dart';
+import 'features/subscriptions/screens/subscriptions_screen.dart';
 
 class CustomerApp extends StatelessWidget {
   const CustomerApp({super.key});
@@ -36,6 +38,8 @@ class _CustomerShellState extends State<CustomerShell> {
     const DiscoverScreen(),
     const PlansScreen(),
     const OrdersScreen(),
+    const ReservationsScreen(),
+    const SubscriptionsScreen(),
     const AlertsScreen(),
     const ProfileScreen(),
   ];
@@ -54,6 +58,8 @@ class _CustomerShellState extends State<CustomerShell> {
           NavigationDestination(icon: Icon(Icons.search_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.calendar_month_outlined), label: 'Meal plans'),
           NavigationDestination(icon: Icon(Icons.shopping_bag_outlined), label: 'Orders'),
+          NavigationDestination(icon: Icon(Icons.event_available_rounded), label: 'Reservations'),
+          NavigationDestination(icon: Icon(Icons.card_membership_outlined), label: 'Plans'),
           NavigationDestination(icon: Icon(Icons.notifications_none), label: 'Alerts'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],

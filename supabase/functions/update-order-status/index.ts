@@ -60,6 +60,28 @@ Deno.serve(async (request) => {
     .maybeSingle();
   if (updateError) return json({ error: updateError.message, code: updateError.code }, 409);
   if (!updatedOrder) return json({ error: 'Order not found' }, 404);
+
+  try {
+    await adminClient.from('order_status_log').insert({
+      order_id: order.id,
+      status: canonicalStatus,
+      actor_id: userData.user.id,
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+  try {
+    await adminClient.from('audit_logs').insert({
+      actor_id: userData.user.id,
+      action: 'update_order_status',
+      target_table: 'orders',
+      target_id: order.id,
+      metadata: { previous_status: order.status, new_status: canonicalStatus, vendor_id: order.vendor_id },
+    });
+  } catch {
+    // Best-effort event tracking only.
+  }
+
   await adminClient.from('customer_notifications').upsert({
       customer_id: order.customer_id,
       order_id: order.id,

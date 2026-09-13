@@ -36,11 +36,29 @@ Deno.serve(async (request) => {
 
   const { data: vendor, error: updateError } = await adminClient
     .from('vendors')
-    .update({ is_approved: approved, approval_note: approved ? null : approvalNote, updated_at: new Date().toISOString() })
+    .update({
+      is_approved: approved,
+      approval_note: approved ? null : approvalNote,
+      status: approved ? 'active' : 'rejected',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', vendorId)
     .select()
     .maybeSingle();
   if (updateError) return json({ error: updateError.message }, 500);
   if (!vendor) return json({ error: 'Vendor not found' }, 404);
+
+  try {
+    await adminClient.from('audit_logs').insert({
+      actor_id: userData.user.id,
+      action: approved ? 'approve_vendor' : 'reject_vendor',
+      target_table: 'vendors',
+      target_id: vendor.id,
+      metadata: { decision: approved ? 'approve' : 'reject', reason: approvalNote || null },
+    });
+  } catch {
+    // Audit logging is best-effort only.
+  }
+
   return json({ ...vendor, decision: approved ? 'approve' : 'reject' });
 });
