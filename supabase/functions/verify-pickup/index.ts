@@ -42,9 +42,11 @@ Deno.serve(async (request) => {
     .from('orders')
     .update({ status: 'completed', pickup_verified_at: new Date().toISOString() })
     .eq('id', order.id)
+    .eq('status', 'ready')
     .select()
-    .single();
+    .maybeSingle();
   if (updateError) return json({ error: updateError.message }, 409);
+  if (!updatedOrder) return json({ error: { code: 'ORDER_STATE_CHANGED', message: 'The order changed before pickup verification completed.' } }, 409);
 
   try {
     await adminClient.from('order_status_log').insert({

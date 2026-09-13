@@ -34,6 +34,14 @@ Deno.serve(async (request) => {
   const validStatuses = ['accepted', 'preparing', 'ready', 'completed', 'rejected', 'cancelled'];
   if (!validStatuses.includes(canonicalStatus)) return json({ error: 'Invalid order status' }, 400);
 
+  const allowedTransitions: Record<string, string[]> = {
+    pending_payment: ['cancelled'],
+    confirmed: ['accepted', 'rejected', 'cancelled'],
+    accepted: ['preparing', 'cancelled'],
+    preparing: ['ready', 'cancelled'],
+    ready: ['completed'],
+  };
+
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
   const { data: order, error: orderError } = await adminClient
     .from('orders')
@@ -51,11 +59,20 @@ Deno.serve(async (request) => {
   if (vendorError) return json({ error: vendorError.message }, 500);
   if (!vendor || vendor.owner_id !== userData.user.id) return json({ error: 'Vendor access denied' }, 403);
   if (requestedVendorId && requestedVendorId !== order.vendor_id) return json({ error: 'Vendor access denied' }, 403);
+  if (!(allowedTransitions[order.status] ?? []).includes(canonicalStatus)) {
+    return json({
+      error: {
+        code: 'ILLEGAL_ORDER_TRANSITION',
+        message: `Cannot move an order from ${order.status} to ${canonicalStatus}.`,
+      },
+    }, 409);
+  }
 
   const { data: updatedOrder, error: updateError } = await adminClient
     .from('orders')
     .update({ status: canonicalStatus })
     .eq('id', orderId)
+    .eq('status', order.status)
     .select('id, status, total_paise, created_at, notes, customer:users(full_name, email), order_items(name, quantity, unit_price_paise)')
     .maybeSingle();
   if (updateError) return json({ error: updateError.message, code: updateError.code }, 409);

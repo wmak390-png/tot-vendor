@@ -46,7 +46,62 @@ Deno.serve(async (request) => {
     .eq('razorpay_order_id', razorpayOrderId)
     .maybeSingle();
   if (orderError) return json({ error: orderError.message }, 500);
-  if (!order) return json({ received: true });
+  if (!order) {
+    const { data: purchase, error: purchaseError } = await adminClient
+      .from('subscription_purchases')
+      .select('id, user_id, plan_id, vendor_id, customer_paid_paise, status, user_subscription_id')
+      .eq('razorpay_order_id', razorpayOrderId)
+      .maybeSingle();
+    if (purchaseError) return json({ error: purchaseError.message }, 500);
+    if (!purchase) return json({ received: true });
+    if (payment?.currency !== 'INR' || amountPaise !== purchase.customer_paid_paise) {
+      return json({ error: 'Subscription payment amount or currency does not match.' }, 400);
+    }
+    if (purchase.status === 'confirmed' || purchase.user_subscription_id) return json({ received: true });
+
+    if (event === 'payment.failed') {
+      const { error: failedError } = await adminClient
+        .from('subscription_purchases')
+        .update({ status: 'payment_failed', razorpay_payment_id: paymentId })
+        .eq('id', purchase.id)
+        .eq('status', 'pending_payment');
+      if (failedError) return json({ error: failedError.message }, 409);
+      return json({ received: true });
+    }
+
+    const { data: plan, error: planError } = await adminClient
+      .from('subscription_plans')
+      .select('total_meals, duration_days')
+      .eq('id', purchase.plan_id)
+      .maybeSingle();
+    if (planError) return json({ error: planError.message }, 500);
+    if (!plan) return json({ error: 'Subscription plan not found.' }, 409);
+
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + (Number(plan.duration_days) - 1) * 24 * 60 * 60 * 1000);
+    const { data: subscription, error: subscriptionError } = await adminClient
+      .from('user_subscriptions')
+      .insert({
+        user_id: purchase.user_id,
+        plan_id: purchase.plan_id,
+        total_meals: plan.total_meals,
+        meals_remaining: plan.total_meals,
+        start_date: startDate.toISOString().slice(0, 10),
+        end_date: endDate.toISOString().slice(0, 10),
+        status: 'active',
+      })
+      .select()
+      .single();
+    if (subscriptionError) return json({ error: subscriptionError.message }, 409);
+
+    const { error: purchaseUpdateError } = await adminClient
+      .from('subscription_purchases')
+      .update({ status: 'confirmed', razorpay_payment_id: paymentId, user_subscription_id: subscription.id })
+      .eq('id', purchase.id)
+      .eq('status', 'pending_payment');
+    if (purchaseUpdateError) return json({ error: purchaseUpdateError.message }, 409);
+    return json({ received: true });
+  }
 
   const paymentStatus = event === 'payment.captured' ? 'captured' : 'failed';
   const { error: paymentError } = await adminClient.from('payments').upsert({

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_bootstrap.dart';
+
 class ReservationsScreen extends StatefulWidget {
   const ReservationsScreen({super.key});
 
@@ -8,7 +10,7 @@ class ReservationsScreen extends StatefulWidget {
 }
 
 class _ReservationsScreenState extends State<ReservationsScreen> {
-  final List<Map<String, dynamic>> _reservations = const [
+  List<Map<String, dynamic>> _reservations = [
     {
       'title': 'Lunch reservation',
       'vendor': 'Tiffin & Co.',
@@ -24,6 +26,60 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       'type': 'Table',
     },
   ];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReservations();
+  }
+
+  Future<void> _loadReservations() async {
+    final client = SupabaseBootstrap.client;
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final rows = await client
+          .from('meal_reservations')
+          .select('id, status, expires_at, created_at, subscription_orders(meal_slot, scheduled_pickup_time, vendors(business_name))')
+          .order('created_at', ascending: false);
+      if (mounted) {
+        setState(() {
+          _reservations = rows.map((row) {
+            final order = row['subscription_orders'] as Map<String, dynamic>?;
+            final vendor = order?['vendors'] as Map<String, dynamic>?;
+            final pickup = DateTime.tryParse(order?['scheduled_pickup_time'] as String? ?? '')?.toLocal();
+            final status = row['status'] as String? ?? 'reserved';
+            return {
+              'title': '${order?['meal_slot'] ?? 'Meal'} reservation',
+              'vendor': vendor?['business_name'] as String? ?? 'TakeOnTime vendor',
+              'time': pickup == null ? 'Pickup time pending' : _formatDateTime(pickup),
+              'status': _displayStatus(status),
+              'type': 'Meal pass',
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _reservations = const []);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static String _displayStatus(String value) => switch (value) {
+        'reserved' => 'Confirmed',
+        'consumed' => 'Consumed',
+        'no_show' => 'No show',
+        'cancelled' => 'Cancelled',
+        _ => value,
+      };
+
+  static String _formatDateTime(DateTime value) => '${value.day}/${value.month} · ${value.hour == 0 ? 12 : value.hour > 12 ? value.hour - 12 : value.hour}:${value.minute.toString().padLeft(2, '0')} ${value.hour >= 12 ? 'PM' : 'AM'}';
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +94,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             Text('My bookings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           ],
         ),
+        actions: [IconButton(onPressed: _loadReservations, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh reservations')],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -57,6 +114,9 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          if (_loading) const LinearProgressIndicator(),
+          if (!_loading && _reservations.isEmpty)
+            const Card(child: ListTile(title: Text('No reservations yet'), subtitle: Text('Reserve a meal from an active subscription to see it here.'))),
           ..._reservations.map((reservation) => _ReservationCard(reservation: reservation)),
         ],
       ),
