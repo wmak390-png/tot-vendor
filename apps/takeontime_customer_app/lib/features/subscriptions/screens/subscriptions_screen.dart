@@ -34,7 +34,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     try {
       final rows = await client
           .from('user_subscriptions')
-          .select('id, status, meals_remaining, total_meals, end_date, subscription_plans(name)')
+          .select('id, status, meals_remaining, total_meals, end_date, subscription_plans(name, meal_slots)')
           .eq('user_id', client.auth.currentUser?.id ?? '');
       if (mounted) {
         setState(() => _subscriptions = List<Map<String, dynamic>>.from(rows));
@@ -92,17 +92,66 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                ..._subscriptions.map((sub) => _SubscriptionCard(subscription: sub)),
+                ..._subscriptions.map((sub) => _SubscriptionCard(subscription: sub, onBook: () => _bookMeal(sub))),
               ],
             ),
     );
   }
+
+  Future<void> _bookMeal(Map<String, dynamic> subscription) async {
+    final plan = subscription['subscription_plans'] as Map<String, dynamic>?;
+    final slots = (plan?['meal_slots'] as List<dynamic>?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
+    final slotNames = slots.map((slot) => slot['slot'] as String? ?? 'meal').toList();
+    if (slotNames.isEmpty) slotNames.add('lunch');
+    var selectedSlot = slotNames.first;
+    final now = DateTime.now().add(const Duration(hours: 4));
+    final selectedDate = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 60)), initialDate: now);
+    if (selectedDate == null || !mounted) return;
+    final selectedTime = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(now));
+    if (selectedTime == null || !mounted) return;
+    final pickupTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, selectedTime.hour, selectedTime.minute);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Reserve a meal'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedSlot,
+            decoration: const InputDecoration(labelText: 'Meal slot'),
+            items: slotNames.map((slot) => DropdownMenuItem(value: slot, child: Text(slot))).toList(),
+            onChanged: (value) => setDialogState(() => selectedSlot = value ?? selectedSlot),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reserve')),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final client = SupabaseBootstrap.client;
+    if (client == null) return;
+    try {
+      await client.functions.invoke('book-subscription-meal', body: {
+        'subscriptionId': subscription['id'],
+        'mealSlot': selectedSlot,
+        'pickupTime': pickupTime.toUtc().toIso8601String(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Meal reserved successfully.')));
+        _loadSubscriptions();
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+    }
+  }
 }
 
 class _SubscriptionCard extends StatelessWidget {
-  const _SubscriptionCard({required this.subscription});
+  const _SubscriptionCard({required this.subscription, required this.onBook});
 
   final Map<String, dynamic> subscription;
+  final VoidCallback onBook;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +186,8 @@ class _SubscriptionCard extends StatelessWidget {
                 Text(endDate == null ? 'Valid soon' : 'Valid till ${endDate.day}/${endDate.month}', style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: remaining > 0 && status == 'ACTIVE' ? onBook : null, icon: const Icon(Icons.event_available_outlined), label: const Text('Reserve a meal'))),
           ],
         ),
       ),

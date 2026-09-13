@@ -69,37 +69,11 @@ Deno.serve(async (request) => {
       return json({ received: true });
     }
 
-    const { data: plan, error: planError } = await adminClient
-      .from('subscription_plans')
-      .select('total_meals, duration_days')
-      .eq('id', purchase.plan_id)
-      .maybeSingle();
-    if (planError) return json({ error: planError.message }, 500);
-    if (!plan) return json({ error: 'Subscription plan not found.' }, 409);
-
-    const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + (Number(plan.duration_days) - 1) * 24 * 60 * 60 * 1000);
-    const { data: subscription, error: subscriptionError } = await adminClient
-      .from('user_subscriptions')
-      .insert({
-        user_id: purchase.user_id,
-        plan_id: purchase.plan_id,
-        total_meals: plan.total_meals,
-        meals_remaining: plan.total_meals,
-        start_date: startDate.toISOString().slice(0, 10),
-        end_date: endDate.toISOString().slice(0, 10),
-        status: 'active',
-      })
-      .select()
-      .single();
-    if (subscriptionError) return json({ error: subscriptionError.message }, 409);
-
-    const { error: purchaseUpdateError } = await adminClient
-      .from('subscription_purchases')
-      .update({ status: 'confirmed', razorpay_payment_id: paymentId, user_subscription_id: subscription.id })
-      .eq('id', purchase.id)
-      .eq('status', 'pending_payment');
-    if (purchaseUpdateError) return json({ error: purchaseUpdateError.message }, 409);
+    const { error: confirmationError } = await adminClient.rpc('confirm_subscription_purchase', {
+      p_purchase_id: purchase.id,
+      p_payment_id: paymentId,
+    });
+    if (confirmationError) return json({ error: confirmationError.message, code: confirmationError.code }, 409);
     return json({ received: true });
   }
 

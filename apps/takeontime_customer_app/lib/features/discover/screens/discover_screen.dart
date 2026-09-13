@@ -34,6 +34,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   final _service = const CustomerAppService();
   List<_DiscoveryVendor> _vendors = const [];
   bool _loading = true;
+  String _searchQuery = '';
+  String? _selectedFilter;
+  String _pickupLocation = '16th Main, Bengaluru';
 
   @override
   void initState() {
@@ -67,9 +70,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
   }
 
+  Future<void> _choosePickupLocation() async {
+    final controller = TextEditingController(text: _pickupLocation);
+    final location = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pickup location'),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Address or landmark', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Use location')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (location == null || location.isEmpty || !mounted) return;
+    setState(() => _pickupLocation = location);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cards = _vendors.expand((vendor) => [
+    final filteredVendors = _vendors.where((vendor) {
+      final query = _searchQuery.trim().toLowerCase();
+      final matchesQuery = query.isEmpty || vendor.name.toLowerCase().contains(query) || vendor.cuisines.toLowerCase().contains(query);
+      final matchesFilter = _selectedFilter == null || vendor.cuisines.toLowerCase().contains(_selectedFilter!.toLowerCase());
+      return matchesQuery && matchesFilter;
+    }).toList();
+    final cards = filteredVendors.expand((vendor) => [
       _VendorCard(vendor: vendor),
       const SizedBox(height: 12),
     ]).toList();
@@ -87,6 +114,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         ),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.location_on_outlined), tooltip: 'Pickup location'),
+          IconButton(onPressed: _choosePickupLocation, icon: const Icon(Icons.location_on_outlined), tooltip: 'Pickup: $_pickupLocation'),
           const SizedBox(width: 8),
         ],
       ),
@@ -96,12 +124,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _SearchBar(),
+              _SearchBar(onChanged: (value) => setState(() => _searchQuery = value)),
               const SizedBox(height: 16),
-              const _QuickFilterRow(),
+              _QuickFilterRow(selectedFilter: _selectedFilter, onChanged: (value) => setState(() => _selectedFilter = value)),
               const SizedBox(height: 16),
               const _SectionHeader(title: 'Popular near you'),
               if (_loading) const LinearProgressIndicator(),
+              if (!_loading && filteredVendors.isEmpty) const Card(child: ListTile(title: Text('No vendors match your search'), subtitle: Text('Try another cuisine or clear the filter.'))),
               ...cards,
               const SizedBox(height: 20),
               const _SectionHeader(title: 'Saved favorites'),
@@ -136,7 +165,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar();
+  const _SearchBar({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -149,19 +180,23 @@ class _SearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x0A1F2937), blurRadius: 14, offset: Offset(0, 5))],
       ),
-      child: const Row(
-        children: [
-          Icon(Icons.search_rounded, color: Color(0xFF16A34A)),
-          SizedBox(width: 12),
-          Text('Search cuisines, dishes, or vendors', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
-        ],
+      child: TextField(
+        onChanged: onChanged,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          icon: Icon(Icons.search_rounded, color: Color(0xFF16A34A)),
+          hintText: 'Search cuisines, dishes, or vendors',
+        ),
       ),
     );
   }
 }
 
 class _QuickFilterRow extends StatelessWidget {
-  const _QuickFilterRow();
+  const _QuickFilterRow({required this.selectedFilter, required this.onChanged});
+
+  final String? selectedFilter;
+  final ValueChanged<String?> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -173,8 +208,8 @@ class _QuickFilterRow extends StatelessWidget {
           .map(
             (chip) => FilterChip(
               label: Text(chip),
-              selected: chip == 'Healthy',
-              onSelected: (_) {},
+              selected: selectedFilter == chip,
+              onSelected: (selected) => onChanged(selected ? chip : null),
             ),
           )
           .toList(),

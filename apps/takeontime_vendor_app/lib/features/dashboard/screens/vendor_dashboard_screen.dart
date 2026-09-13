@@ -21,9 +21,11 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   String _vendorId = _dashboardVendorId;
   bool _acceptingOrders = true;
   DateTime? _breakUntil;
+  String _businessName = 'Tiffin & Co.';
   int _orderCount = 24;
   double _revenue = 3800;
   bool _loading = true;
+  List<_DashboardOrder> _recentOrders = const [];
 
   bool get _onBreak => _breakUntil != null && _breakUntil!.isAfter(DateTime.now());
 
@@ -48,8 +50,19 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
         setState(() {
           _acceptingOrders = vendor?['accepting_orders'] as bool? ?? _acceptingOrders;
           _breakUntil = DateTime.tryParse(vendor?['break_until'] as String? ?? '')?.toLocal();
+          _businessName = vendor?['business_name'] as String? ?? _businessName;
           _orderCount = orders.length;
           _revenue = orders.fold<double>(0, (total, order) => total + (((order as Map<String, dynamic>)['amount_paise'] as num?)?.toDouble() ?? 0) / 100);
+          _recentOrders = orders.take(5).map((rawOrder) {
+            final order = rawOrder as Map<String, dynamic>;
+            final id = order['id'] as String? ?? 'order';
+            return _DashboardOrder(
+              orderId: '#${id.substring(0, id.length > 8 ? 8 : id.length)}',
+              customer: 'Customer',
+              total: '₹${(((order['total_paise'] as num?)?.toDouble() ?? 0) / 100).toStringAsFixed(0)}',
+              status: _displayStatus(order['status'] as String? ?? 'pending_payment'),
+            );
+          }).toList();
           _loading = false;
         });
       }
@@ -61,7 +74,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final dashboard = _service.dashboard;
-    final recentOrders = dashboard.recentOrders.map((order) => [
+    final recentOrders = (_recentOrders.isEmpty ? dashboard.recentOrders.map((order) => _DashboardOrder(orderId: order.orderId, customer: order.customer, total: order.total, status: order.status)).toList() : _recentOrders).map((order) => [
       _OrderCard(
         orderId: order.orderId,
         customer: order.customer,
@@ -75,12 +88,12 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('VENDOR CONTROL ROOM', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
             SizedBox(height: 2),
-            Text('Tiffin & Co.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            Text(_businessName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           ],
         ),
         actions: [
@@ -143,6 +156,25 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       ),
     );
   }
+
+  static String _displayStatus(String status) => switch (status) {
+        'confirmed' => 'Confirmed',
+        'accepted' => 'Accepted',
+        'preparing' => 'Preparing',
+        'ready' => 'Ready',
+        'completed' => 'Completed',
+        'cancelled' => 'Cancelled',
+        _ => 'New',
+      };
+}
+
+class _DashboardOrder {
+  const _DashboardOrder({required this.orderId, required this.customer, required this.total, required this.status});
+
+  final String orderId;
+  final String customer;
+  final String total;
+  final String status;
 }
 
 class _HeroCard extends StatelessWidget {

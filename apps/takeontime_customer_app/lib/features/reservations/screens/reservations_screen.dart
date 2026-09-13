@@ -55,6 +55,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
             final pickup = DateTime.tryParse(order?['scheduled_pickup_time'] as String? ?? '')?.toLocal();
             final status = row['status'] as String? ?? 'reserved';
             return {
+              'id': row['id'] as String?,
               'title': '${order?['meal_slot'] ?? 'Meal'} reservation',
               'vendor': vendor?['business_name'] as String? ?? 'TakeOnTime vendor',
               'time': pickup == null ? 'Pickup time pending' : _formatDateTime(pickup),
@@ -68,6 +69,34 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       if (mounted) setState(() => _reservations = const []);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _cancelReservation(Map<String, dynamic> reservation) async {
+    final reservationId = reservation['id'] as String?;
+    if (reservationId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel reservation?'),
+        content: const Text('The meal entitlement will be returned to your subscription.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep it')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel reservation')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final client = SupabaseBootstrap.client;
+    if (client == null) return;
+    try {
+      await client.functions.invoke('cancel-meal-reservation', body: {'reservationId': reservationId});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reservation cancelled.')));
+        _loadReservations();
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
     }
   }
 
@@ -108,7 +137,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                 children: [
                   const Text('Reservation summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
-                  Text('2 active bookings · 1 meal pass reservation ready for check-in.', style: Theme.of(context).textTheme.bodyMedium),
+                  Text('${_reservations.where((reservation) => reservation['status'] == 'Confirmed').length} active meal reservations.', style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -117,7 +146,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
           if (_loading) const LinearProgressIndicator(),
           if (!_loading && _reservations.isEmpty)
             const Card(child: ListTile(title: Text('No reservations yet'), subtitle: Text('Reserve a meal from an active subscription to see it here.'))),
-          ..._reservations.map((reservation) => _ReservationCard(reservation: reservation)),
+          ..._reservations.map((reservation) => _ReservationCard(reservation: reservation, onCancel: reservation['id'] == null || reservation['status'] != 'Confirmed' ? null : () => _cancelReservation(reservation))),
         ],
       ),
     );
@@ -125,14 +154,15 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 }
 
 class _ReservationCard extends StatelessWidget {
-  const _ReservationCard({required this.reservation});
+  const _ReservationCard({required this.reservation, this.onCancel});
 
   final Map<String, dynamic> reservation;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
     final status = reservation['status'] as String? ?? 'Confirmed';
-    final color = status == 'Pending' ? Colors.orange : Colors.green;
+    final color = status == 'Pending' ? Colors.orange : status == 'Cancelled' ? Colors.grey : Colors.green;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -140,14 +170,10 @@ class _ReservationCard extends StatelessWidget {
         title: Text(reservation['title'] as String? ?? 'Reservation', style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text('${reservation['vendor']} · ${reservation['time']}\n${reservation['type']}'),
         isThreeLine: true,
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
-        ),
+        trailing: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)), child: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11))),
+          if (onCancel != null) TextButton(onPressed: onCancel, child: const Text('Cancel')),
+        ]),
       ),
     );
   }

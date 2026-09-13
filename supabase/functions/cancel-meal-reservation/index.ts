@@ -16,34 +16,30 @@ Deno.serve(async (request) => {
   if (userError || !userData.user) return json({ error: 'Unauthorized' }, 401);
 
   const body = await request.json().catch(() => null);
-  const subscriptionId = typeof body?.subscriptionId === 'string' ? body.subscriptionId : '';
-  const mealSlot = typeof body?.mealSlot === 'string' ? body.mealSlot.trim() : '';
-  const pickupTime = typeof body?.pickupTime === 'string' ? new Date(body.pickupTime) : null;
-  if (!subscriptionId || !mealSlot || !pickupTime || Number.isNaN(pickupTime.getTime())) return json({ error: 'subscriptionId, mealSlot, and pickupTime are required' }, 400);
+  const reservationId = typeof body?.reservationId === 'string' ? body.reservationId : '';
+  if (!reservationId) return json({ error: 'reservationId is required' }, 400);
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const { data: subscriptionOrder, error: bookingError } = await adminClient.rpc('book_subscription_meal', {
-    p_subscription_id: subscriptionId,
+  const { data: reservation, error: cancellationError } = await adminClient.rpc('cancel_meal_reservation', {
+    p_reservation_id: reservationId,
     p_user_id: userData.user.id,
-    p_meal_slot: mealSlot,
-    p_pickup_time: pickupTime.toISOString(),
   });
-  if (bookingError) {
-    const status = bookingError.code === 'P0002' ? 404 : 409;
-    return json({ error: { code: bookingError.code, message: bookingError.message } }, status);
+  if (cancellationError) {
+    const status = cancellationError.code === 'P0002' ? 404 : 409;
+    return json({ error: { code: cancellationError.code, message: cancellationError.message } }, status);
   }
 
   try {
     await adminClient.from('audit_logs').insert({
       actor_id: userData.user.id,
-      action: 'book_subscription_meal',
-      target_table: 'subscription_orders',
-      target_id: subscriptionOrder.id,
-      metadata: { subscription_id: subscriptionId, meal_slot: mealSlot, pickup_time: pickupTime.toISOString() },
+      action: 'cancel_meal_reservation',
+      target_table: 'meal_reservations',
+      target_id: reservationId,
+      metadata: { reservation_id: reservationId },
     });
   } catch {
     // Audit logging is best-effort only.
   }
 
-  return json(subscriptionOrder, 201);
+  return json(reservation);
 });

@@ -8,16 +8,14 @@ class DiscoveryRepository {
     if (client == null) throw StateError('Supabase is not configured.');
 
     final rows = await client
-        .from('subscription_plans')
-        .select('id, vendor_id, name, description, total_meals, duration_days, daily_limit, base_price_paise, is_active')
+      .from('vendor_items')
+      .select('id, vendor_id, category_id, name, description, price_paise, prep_minutes, is_available')
         .eq('vendor_id', vendorId)
-        .eq('is_active', true)
-        .order('created_at', ascending: false);
+      .eq('is_available', true)
+      .order('name');
 
     return rows.map((row) {
       final item = Map<String, dynamic>.from(row);
-      item['category_id'] = vendorId;
-      item['is_available'] = true;
       return item;
     }).toList();
   }

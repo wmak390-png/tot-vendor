@@ -119,7 +119,11 @@ class _OrderCard extends StatelessWidget {
     };
     return Card(
       child: ListTile(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OrderDetailScreen(order: order, onAdvance: onAdvance))),
+        onTap: () async {
+          final verified = await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(builder: (_) => OrderDetailScreen(order: order, onAdvance: onAdvance)));
+          if (!context.mounted) return;
+          if (verified == true) await (context.findAncestorStateOfType<_OrdersScreenState>()?._loadOrders() ?? Future<void>.value());
+        },
         title: Text('#${order.id} · ${order.customer}'),
         subtitle: Text('${order.quantity} × ${order.item}\nPickup ${order.pickup}'),
         isThreeLine: true,
@@ -152,8 +156,62 @@ class OrderDetailScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Text('Status: ${order.status}', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        if (nextStatus != null) FilledButton.icon(onPressed: () { onAdvance(); Navigator.pop(context); }, icon: const Icon(Icons.arrow_forward), label: Text('Mark as $nextStatus')) else const Text('Order complete'),
+        if (order.status == 'Ready')
+          _VerifyPickupButton(orderId: order.id, onVerified: () => Navigator.pop(context, true))
+        else if (nextStatus != null)
+          FilledButton.icon(onPressed: () { onAdvance(); Navigator.pop(context); }, icon: const Icon(Icons.arrow_forward), label: Text('Mark as $nextStatus'))
+        else
+          const Text('Order complete'),
       ]),
     );
   }
+}
+
+class _VerifyPickupButton extends StatefulWidget {
+  const _VerifyPickupButton({required this.orderId, required this.onVerified});
+
+  final String orderId;
+  final VoidCallback onVerified;
+
+  @override
+  State<_VerifyPickupButton> createState() => _VerifyPickupButtonState();
+}
+
+class _VerifyPickupButtonState extends State<_VerifyPickupButton> {
+  bool _saving = false;
+
+  Future<void> _verify() async {
+    final codeController = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Verify pickup'),
+        content: TextField(controller: codeController, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Pickup OTP', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, codeController.text.trim()), child: const Text('Verify')),
+        ],
+      ),
+    );
+    codeController.dispose();
+    if (code == null || code.isEmpty || !mounted) return;
+    final client = SupabaseBootstrap.client;
+    if (client == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connect Supabase to verify pickup.')));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await client.functions.invoke('verify-pickup', body: {'orderId': widget.orderId, 'code': code});
+      if (mounted) widget.onVerified();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FilledButton.icon(onPressed: _saving ? null : _verify, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_outlined), label: Text(_saving ? 'Verifying...' : 'Verify pickup OTP'));
 }

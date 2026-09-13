@@ -16,6 +16,7 @@ class _StoreScreenState extends State<StoreScreen> {
   String _vendorId = _fallbackVendorId;
   bool _acceptingOrders = true;
   DateTime? _breakUntil;
+  String _businessName = 'Tiffin & Co.';
   bool _loading = true;
   bool _saving = false;
 
@@ -41,6 +42,7 @@ class _StoreScreenState extends State<StoreScreen> {
         setState(() {
           _acceptingOrders = vendor['accepting_orders'] as bool? ?? true;
           _breakUntil = _parseDate(vendor['break_until']);
+          _businessName = vendor['business_name'] as String? ?? _businessName;
           _loading = false;
         });
       } else if (mounted) {
@@ -105,12 +107,12 @@ class _StoreScreenState extends State<StoreScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('STORE OPERATIONS', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
             SizedBox(height: 2),
-            Text('Tiffin & Co.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            Text(_businessName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           ],
         ),
         actions: [IconButton(onPressed: _loadStore, icon: const Icon(Icons.refresh_rounded), tooltip: 'Refresh store data'), const SizedBox(width: 8)],
@@ -145,8 +147,8 @@ class _StoreScreenState extends State<StoreScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.storefront_outlined),
-              title: const Text('Little Fern Kitchen'),
-              subtitle: const Text('Bengaluru · Veg & healthy bowls'),
+              title: Text(_businessName),
+              subtitle: Text('Store profile · ${_acceptingOrders ? 'Accepting orders' : 'Orders paused'}'),
               trailing: const Icon(Icons.edit_outlined),
             ),
           ),

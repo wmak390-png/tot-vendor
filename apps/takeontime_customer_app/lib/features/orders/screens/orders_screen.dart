@@ -50,6 +50,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           'Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length)}',
           order.status,
           order.createdAt?.toLocal().toString() ?? 'Recently placed',
+          id: order.id,
           totalPaise: order.totalPaise,
           notes: order.notes,
           items: order.items,
@@ -65,6 +66,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   'Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length)}',
                   order.status,
                   order.createdAt?.toLocal().toString() ?? 'Recently placed',
+                  id: order.id,
               totalPaise: order.totalPaise,
               notes: order.notes,
               items: order.items,
@@ -116,12 +118,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(999)),
                   child: Text(order.status, style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 11, fontWeight: FontWeight.w800)),
                 ),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+                onTap: () async {
+                  await Navigator.of(context).push<bool>(
+                    MaterialPageRoute<bool>(
                       builder: (_) => OrderDetailScreen(order: order),
                     ),
                   );
+                  if (mounted) _loadOrders();
                 },
               ),
             );
@@ -173,6 +176,9 @@ class OrderDetailScreen extends StatelessWidget {
               _OrderRow(label: 'Total', value: '₹${(order.totalPaise / 100).toStringAsFixed(0)}'),
               if (order.notes != null && order.notes!.isNotEmpty) _OrderRow(label: 'Note', value: order.notes!),
               const SizedBox(height: 16),
+              if (order.id != null && const ['pending_payment', 'confirmed', 'accepted', 'preparing'].contains(order.status.toLowerCase()))
+                _CancelOrderButton(orderId: order.id!, onCancelled: () => Navigator.pop(context, true)),
+              const SizedBox(height: 16),
               const _SummaryCard(
                 title: 'Recent spend',
                 message: 'This month, you have spent ₹2,180 across 8 orders and unlocked a free-drink reward.',
@@ -185,17 +191,63 @@ class OrderDetailScreen extends StatelessWidget {
   }
 }
 
+class _CancelOrderButton extends StatefulWidget {
+  const _CancelOrderButton({required this.orderId, required this.onCancelled});
+
+  final String orderId;
+  final VoidCallback onCancelled;
+
+  @override
+  State<_CancelOrderButton> createState() => _CancelOrderButtonState();
+}
+
+class _CancelOrderButtonState extends State<_CancelOrderButton> {
+  bool _saving = false;
+
+  Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel order?'),
+        content: const Text('This action is only available during the cancellation window.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep order')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel order')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final client = SupabaseBootstrap.client;
+    if (client == null) return;
+    setState(() => _saving = true);
+    try {
+      await client.functions.invoke('cancel-order', body: {'orderId': widget.orderId});
+      if (mounted) widget.onCancelled();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(onPressed: _saving ? null : _cancel, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.close), label: Text(_saving ? 'Cancelling...' : 'Cancel order'));
+}
+
 class OrderEntry {
   const OrderEntry(
     this.vendor,
     this.code,
     this.status,
     this.time, {
+    this.id,
     this.totalPaise = 0,
     this.notes,
     this.items = const [],
   });
 
+  final String? id;
   final String vendor;
   final String code;
   final String status;
